@@ -39,12 +39,31 @@ cp .env.example .env    # then paste your ANTHROPIC_API_KEY into it
 
 Moving between machines: see [DEVICE_SETUP.md](DEVICE_SETUP.md).
 
+## Usage
+
+```bash
+# Check clause boundaries without spending anything (no API call)
+py analyze.py --parse-only data/golden/aggressive_nda_01.txt
+
+# Full extraction
+py analyze.py data/golden/aggressive_nda_01.txt
+
+# Ignore the cache and re-call the API
+py analyze.py --no-cache data/my_nda.pdf
+```
+
+Extraction results are cached in `.cache/` by content hash, so re-running the
+same document is instant and free. Delete `.cache/` to force re-extraction.
+
 ## Layout
 
 | Path | What's in it |
 |---|---|
 | `src/legal_ai/config.py` | Paths and model IDs. All paths derive from `PROJECT_ROOT`. |
 | `src/legal_ai/schemas.py` | Clause taxonomy + attribute schemas. The contract everything reads from. |
+| `src/legal_ai/parsing.py` | PDF/DOCX/TXT -> clauses. Regex-based, no API calls. |
+| `src/legal_ai/extract.py` | Clauses -> typed attributes via one structured-output call. |
+| `analyze.py` | CLI entry point. |
 | `data/corpus/` | Market-standard NDA templates |
 | `data/golden/` | Eval set: clean NDAs with known aggressive terms planted |
 
