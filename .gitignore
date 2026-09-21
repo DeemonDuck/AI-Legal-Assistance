@@ -1,0 +1,25 @@
+# Secrets - NEVER commit
+.env
+*.key
+
+# Virtual environment - rebuild per device, do not move
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# Node
+node_modules/
+
+# Generated artifacts
+data/corpus_index/
+outputs/
+.cache/
+*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.streamlit/secrets.toml
