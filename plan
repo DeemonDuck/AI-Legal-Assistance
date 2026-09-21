@@ -1,0 +1,51 @@
+# Legal GenAI Assistant — Project Plan
+
+## Problem Statement
+Legal documents are hard to understand without professional help. Build a GenAI-powered solution that helps users understand, compare, and navigate legal documents — providing information and assistance, not replacing a lawyer. GenAI integration is a mandatory hackathon requirement.
+
+## Scope Decision
+- **Document type:** NDAs only (mention "extensible to other contract types" in README, don't build it)
+- **Core pipeline:** Market-Deviation Scorer → Negotiation-Stance Engine (chained, not separate features)
+- **Stretch goal (only if core is solid with time left):** Obligation Timeline Extractor
+- **Explicitly not building:** document drafting, multi-doc-type support, model fine-tuning, a legal knowledge graph, jurisdiction-specific legal reasoning
+
+## Why This Scope
+- Time budget: ~25–35 hours total across 13 days — new job starts Monday, 6-day work week, only a few hours/day available
+- Chaining rationale: the deviation scorer identifies *which* clauses are unusual vs. market-standard NDAs; the negotiation engine only needs to debate those flagged clauses, not the whole document. One coherent pipeline > two bolted-on features.
+
+## Architecture / Pipeline
+1. **Ingest** — upload PDF/DOCX → parse into clause-level chunks
+2. **Corpus** — ~15–20 public NDA templates, embedded and clustered by clause type (confidentiality, term, indemnification, governing law, etc.)
+3. **Deviation scoring** — for each clause in the uploaded doc, retrieve nearest same-type corpus clauses, compute similarity, flag low-similarity clauses, LLM explains *why* it deviates
+4. **Negotiation engine** — for flagged clauses, two LLM personas debate (user-favorable vs. market-standard), a synthesizer agent outputs risk level + plain-language explanation + suggested edit/talking point
+5. **UI** — Streamlit report, clause-by-clause, with an optional "generate negotiation email" action
+6. **[Stretch]** — obligation/deadline extractor → timeline view (separate pass on the same parsed clauses, safe to cut)
+
+## Tech Stack (working assumptions — confirm as we build)
+- Python, FastAPI backend + Streamlit frontend
+- Embeddings: local sentence-transformers (free, no quota pressure while iterating)
+- Vector store: FAISS or Chroma
+- LLM: TBD (Anthropic/OpenAI API vs. open model)
+- Deployment: Streamlit Cloud / HF Spaces / Render
+
+## Build Timeline (13 days)
+| Days | Focus |
+|---|---|
+| 1–3 | Corpus collection + clause parsing/ingestion pipeline |
+| 4–6 | Deviation scorer |
+| 7–9 | Negotiation-stance engine |
+| 10–11 | Streamlit UI + end-to-end integration/testing |
+| 12 | Deploy + README + demo video (+ stretch feature only if ahead of schedule) |
+| 13 | Buffer |
+
+## Working Style
+Ridham writes and tests all code himself, to fully internalize the build. Claude's role is architecture, schemas, pseudocode, and code review — not generating full implementations.
+
+## Status
+- [ ] Day 1 — clause data schema + embedding approach decided
+- [ ] Days 2–3 — NDA corpus collected + ingestion pipeline built
+- [ ] Days 4–6 — deviation scorer working
+- [ ] Days 7–9 — negotiation engine working
+- [ ] Days 10–11 — UI integrated, tested end-to-end
+- [ ] Day 12 — deployed, README + demo video done
+- [ ] Day 13 — buffer / polish
