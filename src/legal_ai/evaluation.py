@@ -38,6 +38,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from legal_ai import config
+from legal_ai.corpus import collect_documents
 from legal_ai.scoring import DeviationReport, Severity
 
 EXPECTED_FILE = config.GOLDEN_DIR / "expected.json"
@@ -211,7 +212,6 @@ def check_leakage(
     corpus = Path(corpus_dir) if corpus_dir else config.CORPUS_DIR
     golden = Path(golden_dir) if golden_dir else config.GOLDEN_DIR
 
-    suffixes = {".txt", ".md", ".pdf", ".docx"}
-    corpus_names = {p.stem for p in corpus.iterdir() if p.suffix.lower() in suffixes}
-    golden_names = {p.stem for p in golden.iterdir() if p.suffix.lower() in suffixes}
+    corpus_names = {p.stem for p in collect_documents(corpus)}
+    golden_names = {p.stem for p in collect_documents(golden)}
     return sorted(corpus_names & golden_names)

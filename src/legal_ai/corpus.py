@@ -125,6 +125,24 @@ class CorpusStats:
         )
 
 
+# Documentation living alongside the data must never be ingested as data. This
+# is not hypothetical: data/corpus/README.md was extracted as an NDA on the first
+# live run, producing eleven "clauses" of prose about corpus provenance and
+# corrupting the baseline before the request failed outright.
+DOCUMENT_SUFFIXES = {".txt", ".md", ".pdf", ".docx"}
+NON_DOCUMENT_STEMS = {"readme", "expected", "notes"}
+
+
+def collect_documents(directory: Path) -> list[Path]:
+    """Every real document in a directory, excluding documentation and metadata."""
+    return sorted(
+        p for p in directory.iterdir()
+        if p.is_file()
+        and p.suffix.lower() in DOCUMENT_SUFFIXES
+        and p.stem.lower() not in NON_DOCUMENT_STEMS
+    )
+
+
 def _percentile(sorted_values: list[float], fraction: float) -> float:
     """Linear-interpolated percentile.
 
@@ -237,10 +255,7 @@ def build_corpus(
     every later deviation score meaningless without any visible error.
     """
     directory = Path(corpus_dir) if corpus_dir else config.CORPUS_DIR
-    paths = sorted(
-        p for p in directory.iterdir()
-        if p.suffix.lower() in {".txt", ".md", ".pdf", ".docx"}
-    )
+    paths = sorted(collect_documents(directory))
 
     if not paths:
         raise RuntimeError(
