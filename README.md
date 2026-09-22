@@ -55,9 +55,29 @@ py analyze.py --no-cache data/my_nda.pdf
 py build_corpus.py
 py build_corpus.py --show     # print saved stats without rebuilding
 
-# Run the offline statistics tests (no API key needed)
+# Measure the scorer against hand-written ground truth
+py evaluate.py
+
+# Run the offline tests (no API key needed)
 py tests/test_stats.py
+py tests/test_scoring.py
+py tests/test_evaluation.py
 ```
+
+## How we know it works
+
+`py evaluate.py` scores three documents whose correct answers were written by
+reading them, not by recording what the scorer produced:
+
+| Document | Purpose |
+|---|---|
+| `aggressive_nda_01` | Eight planted aggressive terms — the recall test |
+| `clean_nda_02` | Deliberately unremarkable — any HIGH finding is a false positive |
+| `mixed_nda_03` | Three planted terms among standard ones — tests discrimination |
+
+The eval documents are deliberately **not** in the corpus. Scoring a document
+against a baseline that contains it leaks the answer, and `check_leakage()`
+enforces the separation on every run.
 
 Extraction results are cached in `.cache/` by content hash, so re-running the
 same document is instant and free. Delete `.cache/` to force re-extraction.
@@ -72,7 +92,10 @@ same document is instant and free. Delete `.cache/` to force re-extraction.
 | `src/legal_ai/extract.py` | Clauses -> typed attributes via one structured-output call. |
 | `src/legal_ai/profile.py` | Clause-level facts -> one document-level row. |
 | `src/legal_ai/corpus.py` | Market distributions over document profiles. |
+| `src/legal_ai/scoring.py` | Deviation scoring. Deterministic, no LLM calls. |
+| `src/legal_ai/evaluation.py` | Measures the scorer against ground truth. |
 | `analyze.py` | Analyse a single NDA. |
+| `evaluate.py` | Run the eval. |
 | `build_corpus.py` | Build market statistics from `data/corpus/`. |
 | `data/corpus/` | Market-standard NDA templates |
 | `data/golden/` | Eval set: clean NDAs with known aggressive terms planted |
