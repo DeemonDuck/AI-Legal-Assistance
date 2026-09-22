@@ -1,0 +1,33 @@
+NON-DISCLOSURE AGREEMENT
+
+This Agreement governs the disclosure of confidential information by the Disclosing Party to the Receiving Party.
+
+1. Confidential Information
+"Confidential Information" means non-public technical and business information disclosed by the Disclosing Party, whether in writing or orally, that is identified as confidential at the time of disclosure or promptly thereafter.
+
+2. Exceptions
+The obligations in this Agreement do not apply to information that (a) was already known to the Receiving Party prior to disclosure; (b) is or becomes publicly available through no fault of the Receiving Party; (c) is independently developed by the Receiving Party without use of the Confidential Information; (d) is rightfully received from a third party without restriction; or (e) is required to be disclosed by law or court order, provided prompt notice is given.
+
+3. Obligations of the Receiving Party
+The Receiving Party shall not disclose Confidential Information to any third party, and shall limit access to those of its employees and advisors who have a need to know and who are bound by confidentiality obligations no less protective than these.
+
+4. Term
+The Receiving Party's obligations shall continue for three (3) years from the Effective Date.
+
+5. Return of Materials
+Upon termination or written request, the Receiving Party shall return or destroy all Confidential Information within thirty (30) days.
+
+6. Equitable Relief
+The Receiving Party agrees that the Disclosing Party may seek injunctive relief for any breach or threatened breach of this Agreement.
+
+7. No Warranty
+All Confidential Information is provided "as is" without warranty of any kind.
+
+8. Governing Law and Jurisdiction
+This Agreement shall be governed by the laws of the State of New York, and the parties submit to the exclusive jurisdiction of the courts located in New York County.
+
+9. Assignment
+This Agreement may not be assigned by either party without prior written consent.
+
+10. Entire Agreement
+This Agreement supersedes all prior agreements relating to its subject matter.

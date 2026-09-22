@@ -1,0 +1,33 @@
+MUTUAL NON-DISCLOSURE AGREEMENT (VENDOR ENGAGEMENT)
+
+This Agreement is entered into in connection with the provision of services between the parties.
+
+1. Confidential Information Defined
+"Confidential Information" means information disclosed by either party relating to its business operations, systems, pricing, personnel, or customers, whether or not marked confidential.
+
+2. Exclusions
+This Agreement imposes no obligation with respect to information that (a) was already known to the Receiving Party prior to disclosure; (b) is or becomes publicly available through no fault of the Receiving Party; (c) is independently developed by the Receiving Party without use of the Confidential Information; (d) is rightfully received from a third party without restriction; or (e) is required to be disclosed by law or court order, provided prompt notice is given.
+
+3. Obligations
+Each party shall hold the other's Confidential Information in confidence and use it only as necessary to perform or receive the services.
+
+4. Term of Confidentiality
+The obligations under this Agreement shall continue for five (5) years from the date of disclosure.
+
+5. Return of Confidential Information
+Upon expiry or written request, each party shall return or destroy Confidential Information within sixty (60) days.
+
+6. Injunctive Relief
+Each party may seek injunctive relief to prevent unauthorised use or disclosure.
+
+7. Limitation of Liability
+Each party's aggregate liability under this Agreement shall not exceed the total fees paid under the related services agreement in the twelve (12) months preceding the claim.
+
+8. Governing Law and Venue
+This Agreement is governed by the laws of the State of Texas, and the parties consent to the jurisdiction of the courts of Travis County, Texas.
+
+9. Assignment
+Either party may assign this Agreement to a successor in connection with a merger or sale of substantially all assets, upon written notice.
+
+10. Severability
+If any provision is held unenforceable, the remaining provisions remain in effect.

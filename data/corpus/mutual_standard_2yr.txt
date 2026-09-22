@@ -1,0 +1,33 @@
+MUTUAL NON-DISCLOSURE AGREEMENT
+
+This Mutual Non-Disclosure Agreement is entered into between the parties identified below, each of which may disclose and receive Confidential Information.
+
+1. Definition of Confidential Information
+"Confidential Information" means non-public information disclosed by one party to the other that is marked confidential or that a reasonable person would understand to be confidential given its nature and the circumstances of disclosure.
+
+2. Exclusions
+Confidential Information does not include information that (a) was already known to the Receiving Party prior to disclosure; (b) is or becomes publicly available through no fault of the Receiving Party; (c) is independently developed by the Receiving Party without use of the Confidential Information; (d) is rightfully received from a third party without restriction; or (e) is required to be disclosed by law or court order, provided prompt notice is given.
+
+3. Obligations
+Each party shall use the other party's Confidential Information solely to evaluate and pursue the business relationship between them, and shall protect it using the same degree of care it uses for its own confidential information, and in no event less than reasonable care.
+
+4. Term
+The obligations of confidentiality under this Agreement shall remain in effect for a period of two (2) years from the date of disclosure of the applicable Confidential Information.
+
+5. Return or Destruction of Materials
+Upon written request, each party shall return or destroy the other party's Confidential Information within thirty (30) days, except for copies retained in routine backup systems.
+
+6. Remedies
+Each party acknowledges that unauthorised disclosure may cause irreparable harm, and that the disclosing party may seek injunctive relief in addition to any other remedies available at law.
+
+7. No License
+No license or right to any intellectual property is granted by this Agreement, whether by implication or otherwise.
+
+8. Governing Law
+This Agreement is governed by the laws of the State of Delaware. The parties consent to the jurisdiction of the state and federal courts located in Delaware.
+
+9. Assignment
+Neither party may assign this Agreement without the prior written consent of the other party, such consent not to be unreasonably withheld.
+
+10. Entire Agreement
+This Agreement constitutes the entire agreement between the parties regarding its subject matter and supersedes all prior discussions.
