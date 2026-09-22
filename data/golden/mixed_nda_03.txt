@@ -1,0 +1,36 @@
+MUTUAL NON-DISCLOSURE AGREEMENT
+
+This Agreement is entered into between the parties in connection with a proposed technology partnership.
+
+1. Definition of Confidential Information
+"Confidential Information" means non-public technical, commercial, and business information disclosed by either party in connection with the proposed partnership, whether disclosed orally or in writing.
+
+2. Exclusions
+The obligations under this Agreement do not apply to information that (a) was already known to the Receiving Party prior to disclosure; (b) is or becomes publicly available through no fault of the Receiving Party; (c) is rightfully received from a third party without restriction; or (d) is required to be disclosed by law or court order, provided prompt notice is given.
+
+3. Obligations
+Each party shall hold the other party's Confidential Information in confidence, shall use it only for the purpose of the proposed partnership, and shall disclose it only to personnel and advisers with a genuine need to know who are bound by equivalent obligations.
+
+4. Term
+The obligations of confidentiality under this Agreement shall continue for four (4) years from the date of each disclosure.
+
+5. Non-Solicitation
+During the term of this Agreement and for a period of eighteen (18) months following its expiry, neither party shall solicit for employment any employee of the other party who was introduced in the course of the discussions.
+
+6. Return or Destruction
+Upon written request, each party shall return or destroy the other party's Confidential Information within thirty (30) days and shall confirm in writing that it has done so.
+
+7. Remedies
+Each party acknowledges that damages may be an inadequate remedy for breach, and that the non-breaching party may seek injunctive relief.
+
+8. No Warranty
+All Confidential Information is provided on an "as is" basis, without warranty as to its accuracy or completeness.
+
+9. Governing Law and Venue
+This Agreement shall be governed by the laws of the State of New York, and the parties submit to the exclusive jurisdiction of the courts located in New York County.
+
+10. Assignment
+Neither party may assign this Agreement without the prior written consent of the other party.
+
+11. Entire Agreement
+This Agreement supersedes all prior understandings between the parties relating to its subject matter.

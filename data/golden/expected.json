@@ -1,0 +1,81 @@
+{
+  "_README": [
+    "Ground truth for the eval. Each entry states what the scorer SHOULD find in",
+    "that document, decided by reading the text -- not by running the scorer and",
+    "recording its output. Writing the manifest from the scorer's own output would",
+    "make the eval a tautology that passes no matter how wrong the scorer is.",
+    "",
+    "These documents are deliberately NOT in data/corpus/. Scoring a document",
+    "against a baseline that contains it leaks the answer: its own values pull the",
+    "median toward itself and it looks more normal than it is.",
+    "",
+    "must_flag      attributes the scorer must report. A miss is a false negative.",
+    "min_severity   the weakest acceptable severity for that finding.",
+    "max_high       cap on HIGH findings. Exceeding it means false positives.",
+    "notes          why the term was planted, for when a result needs explaining."
+  ],
+
+  "aggressive_nda_01": {
+    "description": "Eight deliberately aggressive terms. The recall test.",
+    "max_high": null,
+    "must_flag": {
+      "term_months": {
+        "min_severity": "high",
+        "notes": "Perpetual confidentiality. Corpus range is 18-60 months."
+      },
+      "carve_outs_present": {
+        "min_severity": "high",
+        "notes": "No standard exclusions; the definition explicitly sweeps in prior knowledge and independently developed information."
+      },
+      "non_compete_months": {
+        "min_severity": "high",
+        "notes": "24-month non-compete inside an NDA. No corpus document has one at all."
+      },
+      "non_solicit_months": {
+        "min_severity": "medium",
+        "notes": "36 months against a corpus norm of 12."
+      },
+      "indemnification_present": {
+        "min_severity": "medium",
+        "notes": "Uncapped indemnity. No corpus document imposes one."
+      },
+      "attorney_fees_shifting": {
+        "min_severity": "medium",
+        "notes": "Prevailing-party fee shifting; absent from the corpus."
+      },
+      "is_mutual": {
+        "min_severity": "medium",
+        "notes": "Titled 'Mutual' but entirely one-way. Substance over label."
+      },
+      "notice_period_days": {
+        "min_severity": "medium",
+        "notes": "3-day destruction deadline against a corpus median of 30. Direction inverts here."
+      }
+    }
+  },
+
+  "clean_nda_02": {
+    "description": "Deliberately unremarkable control. Any HIGH finding is a false positive.",
+    "max_high": 0,
+    "must_flag": {}
+  },
+
+  "mixed_nda_03": {
+    "description": "Mostly standard with three planted deviations. Tests discrimination rather than blanket flagging.",
+    "max_high": 2,
+    "must_flag": {
+      "non_solicit_months": {
+        "min_severity": "medium",
+        "notes": "18-month non-solicit; only 2 of 8 corpus documents have one, at 12 months."
+      },
+      "term_months": {
+        "min_severity": "low",
+        "notes": "48 months, above the corpus p75 of 36 but inside the 18-60 range. Should register as mild, not severe."
+      },
+      "carve_out:independently_developed": {
+        "min_severity": "medium",
+        "notes": "Exactly one exclusion removed. Must be caught individually, not as the aggregate 'no exclusions' finding."
+      }
+    }
+  }
+}
