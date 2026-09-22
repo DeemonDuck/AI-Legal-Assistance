@@ -61,10 +61,19 @@ class NumericStats:
     p75: float | None
     p90: float | None
     maximum: float | None
+    # Raw finite values, sorted. Kept because at n<20 a rank statement -- "longer
+    # than 7 of the 8 reference NDAs" -- is both more honest and more readable
+    # than "92nd percentile", which implies a precision this sample size cannot
+    # support. The scorer phrases its findings from these.
+    values: list[float] = field(default_factory=list)
 
     @property
     def n_finite(self) -> int:
         return self.n - self.n_perpetual
+
+    def rank_of(self, value: float) -> int:
+        """How many finite corpus values this value exceeds."""
+        return sum(1 for v in self.values if value > v)
 
 
 @dataclass
@@ -142,6 +151,7 @@ def _numeric_stats(values: list[int]) -> NumericStats:
         return NumericStats(
             n=len(values), n_perpetual=len(perpetual),
             minimum=None, p25=None, median=None, p75=None, p90=None, maximum=None,
+            values=[],
         )
 
     return NumericStats(
@@ -153,6 +163,7 @@ def _numeric_stats(values: list[int]) -> NumericStats:
         p75=_percentile(finite, 0.75),
         p90=_percentile(finite, 0.90),
         maximum=finite[-1],
+        values=finite,
     )
 
 
