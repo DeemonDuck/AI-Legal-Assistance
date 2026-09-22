@@ -33,7 +33,7 @@ from legal_ai.schemas import ClauseExtraction, ExtractedClause
 
 # Bump when schemas.py changes shape, so cached results from an older schema are
 # not silently reused and mistaken for current output.
-SCHEMA_VERSION = "2"
+SCHEMA_VERSION = "3"
 
 # Strict structured output requires every attribute on every clause, so a clause
 # emits all 16 fields even when 14 are null.

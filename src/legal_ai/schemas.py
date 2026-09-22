@@ -102,25 +102,45 @@ class ClauseAttributes(BaseModel):
         )
     )
     notice_period_days: int | None = Field(
-        description="Any required notice period, in days. Null if not stated."
+        description=(
+            "Any deadline imposed on the receiving party, in days -- including "
+            "deadlines to return or destroy materials, to certify destruction, or "
+            "to give notice. 'within three (3) days' -> 3. Null only if the clause "
+            "states no deadline at all. Do not restrict this to clauses that use "
+            "the word 'notice'."
+        )
     )
 
     # --- Structure ----------------------------------------------------------
     is_mutual: bool | None = Field(
         description=(
             "True if obligations are reciprocal (both parties bound), False if "
-            "one-way (only one party bound). Null if not determinable."
+            "one-way (only one party bound). Decide from the SUBSTANCE of the "
+            "clause, not the document's title -- an agreement headed 'Mutual' "
+            "whose obligations run only one way is False. If the clause imposes "
+            "duties on a single named party, that is False, not null. Use null "
+            "only where the clause genuinely says nothing about who is bound."
         )
     )
 
     # --- Carve-outs ---------------------------------------------------------
     carve_outs_present: list[str] = Field(
         description=(
-            "Which standard exclusions appear. Use ONLY these exact values: "
-            + ", ".join(STANDARD_CARVE_OUTS)
-            + ". Empty list if none appear. Missing carve-outs are a major red "
-            "flag: an NDA without them can cover information the recipient "
-            "already lawfully had."
+            "Which standard exclusions appear -- categories of information the "
+            "clause says are NOT confidential and NOT covered by the agreement. "
+            "Use ONLY these exact values: " + ", ".join(STANDARD_CARVE_OUTS) + ". "
+            "CHECK THE DIRECTION BEFORE ADDING ANYTHING. A carve-out EXCLUDES "
+            "information from the obligation. Language that INCLUDES the same "
+            "kind of information is the opposite of a carve-out and must NOT be "
+            "listed. For example, 'Confidential Information does not include "
+            "information already known to the Receiving Party' is the "
+            "already_known_to_recipient carve-out; but 'Confidential Information "
+            "includes any information the Receiving Party knew prior to "
+            "disclosure' is NOT -- it is that protection being removed, so the "
+            "list stays empty and this belongs in aggressiveness_signals. "
+            "Matching on topic rather than direction is the single most damaging "
+            "mistake you can make on this field. Empty list if no exclusions "
+            "appear."
         )
     )
 
