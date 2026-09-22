@@ -23,6 +23,7 @@ from legal_ai.corpus import load_stats  # noqa: E402
 from legal_ai.extract import extract_clauses  # noqa: E402
 from legal_ai.parsing import parse_document  # noqa: E402
 from legal_ai.profile import build_profile  # noqa: E402
+from legal_ai.negotiate import draft_email, negotiate  # noqa: E402
 from legal_ai.scoring import Severity, score_document  # noqa: E402
 
 SEVERITY_MARK = {
@@ -105,6 +106,34 @@ def _print_report(report, clauses) -> None:
     print("-" * 78)
 
 
+def _print_negotiations(result, report) -> None:
+    print("\n" + "=" * 78)
+    source = "cache" if result.from_cache else "API"
+    print(f"NEGOTIATING POSITIONS  ({len(result.negotiations)} terms, from {source})")
+    print("=" * 78)
+    print(f"\n{result.overall_assessment}\n")
+
+    for n in result.negotiations:
+        print("-" * 78)
+        print(f"[{n.risk_level.value.upper()}] {n.attribute}")
+        print(f"\n  What it means : {n.plain_explanation}")
+        print(f"\n  Their case    : {n.counterparty_justification}")
+        print(f"\n  Your case     : {n.your_position}")
+        print(f"\n  Ask for       : {n.suggested_redline}")
+        print(f"\n  Fall back to  : {n.fallback_position}")
+        print(f"\n  Say this      : \"{n.talking_point}\"")
+        print()
+
+    # Where statistical rarity and practical risk disagree, that gap is itself
+    # informative -- "unusual" and "dangerous" are different questions.
+    gaps = result.disagreements(report)
+    if gaps:
+        print("-" * 78)
+        print("Where statistical rarity and practical risk differ:")
+        for attribute, statistical, practical in gaps:
+            print(f"  {attribute}: unusual={statistical}, practical risk={practical}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Extract structured data from an NDA.")
     parser.add_argument("document", type=Path, help="Path to a PDF, DOCX, or TXT NDA")
@@ -117,6 +146,16 @@ def main() -> int:
         "--no-cache",
         action="store_true",
         help="Force a fresh API call instead of reusing a cached extraction.",
+    )
+    parser.add_argument(
+        "--negotiate",
+        action="store_true",
+        help="Also generate negotiating positions for each flagged term (1 API call).",
+    )
+    parser.add_argument(
+        "--email",
+        action="store_true",
+        help="Also draft a negotiation email. Implies --negotiate.",
     )
     parser.add_argument(
         "--clauses",
@@ -159,7 +198,32 @@ def main() -> int:
         return 1
 
     profile = build_profile(args.document.stem, result.extracted)
-    _print_report(score_document(profile, stats), result.raw_clauses)
+    report = score_document(profile, stats)
+    _print_report(report, result.raw_clauses)
+
+    if not (args.negotiate or args.email):
+        return 0
+
+    try:
+        negotiations = negotiate(report, result.raw_clauses, use_cache=not args.no_cache)
+    except RuntimeError as exc:
+        # The deviation report already printed and is still useful on its own,
+        # so a negotiation failure must not discard it.
+        print(f"\n{exc}", file=sys.stderr)
+        return 1
+
+    _print_negotiations(negotiations, report)
+
+    if args.email:
+        try:
+            print("\n" + "=" * 78)
+            print("DRAFT NEGOTIATION EMAIL")
+            print("=" * 78 + "\n")
+            print(draft_email(negotiations, use_cache=not args.no_cache))
+        except RuntimeError as exc:
+            print(f"\n{exc}", file=sys.stderr)
+            return 1
+
     return 0
 
 
