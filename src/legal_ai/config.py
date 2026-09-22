@@ -72,14 +72,25 @@ MAX_TOKENS = MAX_TOKENS_BY_PROVIDER[PROVIDER]
 # 1. Pace requests BEFORE sending rather than firing and retrying whatever
 #    bounces. A rejected request still costs the provider work, and
 #    retry-on-rejection is how free tiers get withdrawn.
-# 2. Claim well under half the published limit. The account's 8,000 TPM is
-#    shared, so consuming it all would starve the other user -- they would see
-#    unexplained 429s caused by this process. 3,500 leaves them the larger share.
+# 2. Leave the other user real headroom. The account's 8,000 TPM is shared, so
+#    consuming all of it would give them unexplained 429s caused by this process.
+#    6,000 keeps 2,000 TPM free at any instant.
 #
-# Raise `tokens_per_minute` only after confirming nobody else is using the key.
+# WHY NOT LOWER? Because there are two different courtesy metrics and they pull
+# in opposite directions. The JSON schema (~1,970 tokens) is re-sent on EVERY
+# call, so a lower per-minute cap forces smaller clause batches, which means
+# more calls, which means the schema is re-sent more times. Measured over a full
+# corpus + eval run:
+#
+#     4,000 TPM -> batch 2 -> 66 calls -> 215,622 tokens total
+#     6,000 TPM -> batch 4 -> 33 calls -> 140,811 tokens total
+#
+# The "safer" 4,000 setting consumes 53% MORE of the shared quota overall. 6,000
+# leaves instantaneous headroom while using far less of the account's total
+# allowance. Raise to ~7,600 only when nobody else is using the key.
 RATE_LIMITS = {
     "groq": {
-        "tokens_per_minute": 4000,   # half of the 8000 published; teammate gets the rest
+        "tokens_per_minute": 6000,   # of 8000 published; see the note below
         "min_seconds_between_calls": 3.0,
     },
     "anthropic": {

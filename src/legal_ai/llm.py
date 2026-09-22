@@ -97,6 +97,22 @@ class _TokenBudget:
         if limit <= 0:
             return
 
+        # A single request larger than the whole per-minute budget can never fit,
+        # no matter how long we wait. Caught explicitly because the waiting loop
+        # below would otherwise call min() on an empty window and die with
+        # "min() iterable argument is empty" -- which is what actually happened:
+        # the corpus build appeared to hang while it had in fact crashed on the
+        # first uncached document, producing no output and no API calls.
+        if estimated_tokens > limit:
+            raise LLMError(
+                f"A single request reserves {estimated_tokens} tokens but the "
+                f"per-minute budget is only {limit}. It can never be sent.\n"
+                "Either lower MAX_TOKENS in config.py (which shrinks the clause "
+                "batch size to match), or raise tokens_per_minute -- but only up "
+                "to the provider's published limit, and only if nobody else is "
+                "using the key."
+            )
+
         while True:
             now = time.monotonic()
             self._prune(now)
@@ -125,15 +141,35 @@ class _TokenBudget:
 _BUDGET = _TokenBudget()
 
 
-def estimate_tokens(system: str, user: str, max_tokens: int) -> int:
-    """Rough token cost of a request: prompt plus the reserved output ceiling.
+# The estimate is what the rate limiter reserves, so it must never come in under
+# the real cost -- an under-estimate means we quietly exceed the provider's limit
+# while believing we are inside it. Applied after the component costs are summed.
+ESTIMATE_SAFETY_MARGIN = 1.15
 
-    Providers count requested max_tokens against the limit, not just what the
-    model actually generates, so the ceiling has to be included. ~4 characters
-    per token is crude but errs high on legal text, which is what we want.
+
+def estimate_tokens(system: str, user: str, max_tokens: int, schema: dict | None = None) -> int:
+    """Upper-bound token cost of a request.
+
+    Three components, and missing any one of them under-reserves:
+
+    1. The prompt text.
+    2. The JSON schema. This is the one that caught us out -- `response_format`
+       ships the full schema on EVERY request and it counts as input. For this
+       project's schema that is ~1970 tokens, which was 3x the entire rest of the
+       estimate. Omitting it meant reserving 2420 tokens for a request that
+       actually cost 3532, so the limiter let through ~46% more than the budget
+       allowed and we sailed past the provider's limit while believing we were
+       under it.
+    3. The requested `max_tokens`, because providers count the reserved ceiling
+       rather than what the model actually generates.
+
+    ~4 characters per token, then a safety margin. Erring high costs a little
+    throughput; erring low costs someone else their rate limit.
     """
     prompt_tokens = (len(system) + len(user)) // 4
-    return prompt_tokens + max_tokens
+    schema_tokens = len(json.dumps(schema)) // 4 if schema else 0
+    raw = prompt_tokens + schema_tokens + max_tokens
+    return int(raw * ESTIMATE_SAFETY_MARGIN)
 
 
 # --- Groq --------------------------------------------------------------------
@@ -193,7 +229,7 @@ def _groq_attempt(system, user, model_cls, model, max_tokens, schema, *, retry):
             f"schema. The top level must be an object, not an array."
         )
 
-    _BUDGET.reserve(estimate_tokens(system, user, max_tokens))
+    _BUDGET.reserve(estimate_tokens(system, user, max_tokens, schema))
 
     try:
         response = _groq_client().chat.completions.create(
