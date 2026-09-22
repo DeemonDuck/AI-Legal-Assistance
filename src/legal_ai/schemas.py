@@ -235,6 +235,9 @@ NUMERIC_SCORED_ATTRIBUTES = [
     "survival_months",
     "non_solicit_months",
     "non_compete_months",
+    # Scored with the direction INVERTED -- a shorter compliance deadline is
+    # worse for the signer, not better. scoring.NUMERIC_RULES encodes that.
+    "notice_period_days",
 ]
 
 BOOLEAN_SCORED_ATTRIBUTES = [
