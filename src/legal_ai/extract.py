@@ -26,15 +26,34 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-import anthropic
-
 from legal_ai import config
+from legal_ai.llm import LLMError, structured
 from legal_ai.parsing import RawClause, parse_document
 from legal_ai.schemas import ClauseExtraction, ExtractedClause
 
 # Bump when schemas.py changes shape, so cached results from an older schema are
 # not silently reused and mistaken for current output.
-SCHEMA_VERSION = "1"
+SCHEMA_VERSION = "2"
+
+# Strict structured output requires every attribute on every clause, so a clause
+# emits all 16 fields even when 14 are null. MEASURED on gpt-oss-120b at
+# reasoning_effort=low: 1278 completion tokens for 4 clauses, i.e. ~320 each,
+# of which ~280 total is reasoning overhead. An earlier guess of 350 was too low
+# because it ignored reasoning tokens entirely, and every batch truncated.
+#
+# Documents are therefore split into batches that fit the output ceiling rather
+# than being sent whole and truncated. Truncation is the dangerous failure here:
+# it looks like a successful analysis of a shorter document. Batching costs some
+# cross-clause context, which is a real loss (see the module docstring) but a
+# smaller one than silently losing half a document.
+TOKENS_PER_CLAUSE = 340
+BATCH_SAFETY_FACTOR = 0.8
+
+
+def _batch_size() -> int:
+    """How many clauses fit in one response, given the output ceiling."""
+    usable = int(config.MAX_TOKENS * BATCH_SAFETY_FACTOR)
+    return max(1, usable // TOKENS_PER_CLAUSE)
 
 SYSTEM_PROMPT = """You are a contracts analyst extracting structured data from NDA clauses.
 
@@ -66,7 +85,9 @@ standard.
 6. plain_summary is one sentence a non-lawyer can act on. No jargon, no hedging, \
 no restating the clause in legal language.
 
-Return one entry per clause given, in the same order."""
+Return one entry per clause given, in the same order.
+
+Return a JSON OBJECT with a single key "clauses" whose value is the array. Do not return a bare array as the top-level value."""
 
 
 @dataclass
@@ -84,10 +105,6 @@ class ExtractionResult:
 
     def pairs(self) -> list[tuple[RawClause, ExtractedClause]]:
         return list(zip(self.raw_clauses, self.extracted))
-
-
-def _client() -> anthropic.Anthropic:
-    return anthropic.Anthropic(api_key=config.get_api_key())
 
 
 def _cache_path(clauses: list[RawClause]) -> Path:
@@ -131,50 +148,24 @@ def extract_clauses(clauses: list[RawClause], *, use_cache: bool = True) -> Extr
             from_cache=True,
         )
 
-    client = _client()
-    user_content = (
-        f"Extract structured data from the following {len(clauses)} NDA clauses.\n\n"
-        f"{_format_clauses(clauses)}"
-    )
+    size = _batch_size()
+    batches = [clauses[i:i + size] for i in range(0, len(clauses), size)]
 
-    try:
-        response = client.messages.parse(
-            model=config.EXTRACTION_MODEL,
-            max_tokens=config.MAX_TOKENS,
-            # The system prompt is identical across every document and every
-            # corpus pass, so caching it is a straight saving on a hot path.
-            system=[
-                {
-                    "type": "text",
-                    "text": SYSTEM_PROMPT,
-                    "cache_control": {"type": "ephemeral"},
-                }
-            ],
-            messages=[{"role": "user", "content": user_content}],
-            output_format=ClauseExtraction,
+    extracted: list[ExtractedClause] = []
+    for number, batch in enumerate(batches, start=1):
+        label = f" (part {number} of {len(batches)})" if len(batches) > 1 else ""
+        user_content = (
+            f"Extract structured data from the following {len(batch)} NDA "
+            f"clauses{label}.\n\n{_format_clauses(batch)}"
         )
-    except anthropic.RateLimitError as exc:
-        raise RuntimeError(
-            "Anthropic rate limit hit during extraction. Wait a moment and retry; "
-            "cached documents are unaffected."
-        ) from exc
-    except anthropic.APIStatusError as exc:
-        raise RuntimeError(
-            f"Anthropic API error {exc.status_code} during extraction: {exc.message}"
-        ) from exc
-    except anthropic.APIConnectionError as exc:
-        raise RuntimeError(
-            "Could not reach the Anthropic API. Check your network connection."
-        ) from exc
-
-    if response.stop_reason == "max_tokens":
-        raise RuntimeError(
-            f"Extraction hit the {config.MAX_TOKENS}-token output cap on a document with "
-            f"{len(clauses)} clauses, so the result is truncated. Raise MAX_TOKENS in "
-            "config.py, or split the document and extract in batches."
-        )
-
-    extracted = list(response.parsed_output.clauses)
+        try:
+            parsed = structured(
+                SYSTEM_PROMPT, user_content, ClauseExtraction,
+                model=config.EXTRACTION_MODEL,
+            )
+        except LLMError as exc:
+            raise RuntimeError(f"Extraction failed: {exc}") from exc
+        extracted.extend(parsed.clauses)
 
     # The model can return a different count than was sent. Align rather than
     # crash -- a truncated report is recoverable, a hard failure mid-demo is not

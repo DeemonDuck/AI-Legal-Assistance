@@ -199,6 +199,7 @@ def _groq_attempt(system, user, model_cls, model, max_tokens, schema, *, retry):
         response = _groq_client().chat.completions.create(
             model=model,
             max_tokens=max_tokens,
+            reasoning_effort=config.REASONING_EFFORT,
             messages=[
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
