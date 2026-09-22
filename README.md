@@ -50,6 +50,13 @@ py analyze.py data/golden/aggressive_nda_01.txt
 
 # Ignore the cache and re-call the API
 py analyze.py --no-cache data/my_nda.pdf
+
+# Build the market-standard distributions the scorer compares against
+py build_corpus.py
+py build_corpus.py --show     # print saved stats without rebuilding
+
+# Run the offline statistics tests (no API key needed)
+py tests/test_stats.py
 ```
 
 Extraction results are cached in `.cache/` by content hash, so re-running the
@@ -63,7 +70,10 @@ same document is instant and free. Delete `.cache/` to force re-extraction.
 | `src/legal_ai/schemas.py` | Clause taxonomy + attribute schemas. The contract everything reads from. |
 | `src/legal_ai/parsing.py` | PDF/DOCX/TXT -> clauses. Regex-based, no API calls. |
 | `src/legal_ai/extract.py` | Clauses -> typed attributes via one structured-output call. |
-| `analyze.py` | CLI entry point. |
+| `src/legal_ai/profile.py` | Clause-level facts -> one document-level row. |
+| `src/legal_ai/corpus.py` | Market distributions over document profiles. |
+| `analyze.py` | Analyse a single NDA. |
+| `build_corpus.py` | Build market statistics from `data/corpus/`. |
 | `data/corpus/` | Market-standard NDA templates |
 | `data/golden/` | Eval set: clean NDAs with known aggressive terms planted |
 

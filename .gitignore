@@ -4,6 +4,7 @@
 
 # Local machine-specific Claude Code instructions
 CLAUDE.local.md
+PROGRESS.local.md
 
 # Virtual environment - rebuild per device, do not move
 .venv/
