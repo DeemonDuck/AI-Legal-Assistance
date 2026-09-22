@@ -66,31 +66,35 @@ MAX_TOKENS_BY_PROVIDER = {"groq": 2400, "anthropic": 8000}
 MAX_TOKENS = MAX_TOKENS_BY_PROVIDER[PROVIDER]
 
 # --- Rate limiting -----------------------------------------------------------
-# We are on a free tier, and the Groq key is SHARED with a teammate. Two things
-# follow, and both are deliberate:
+# We are on a free tier: 8,000 tokens per minute. Requests are paced BEFORE being
+# sent rather than fired and retried on rejection -- a rejected request still
+# costs the provider work, and retry-on-rejection is how free tiers get withdrawn.
 #
-# 1. Pace requests BEFORE sending rather than firing and retrying whatever
-#    bounces. A rejected request still costs the provider work, and
-#    retry-on-rejection is how free tiers get withdrawn.
-# 2. Leave the other user real headroom. The account's 8,000 TPM is shared, so
-#    consuming all of it would give them unexplained 429s caused by this process.
-#    6,000 keeps 2,000 TPM free at any instant.
+# 7,600 of 8,000, with sole use of the key. The 400 held back absorbs error in
+# the per-clause token estimate, which is derived from a sample and will be wrong
+# on unusually dense documents.
 #
-# WHY NOT LOWER? Because there are two different courtesy metrics and they pull
-# in opposite directions. The JSON schema (~1,970 tokens) is re-sent on EVERY
-# call, so a lower per-minute cap forces smaller clause batches, which means
-# more calls, which means the schema is re-sent more times. Measured over a full
-# corpus + eval run:
+# TWO THINGS NOT TO CHANGE CASUALLY.
+#
+# Lowering this is not automatically safer. The JSON schema (~1,970 tokens) is
+# re-sent on EVERY call, so a lower cap forces smaller clause batches, more
+# calls, and more schema resends. Measured over a full corpus + eval run:
 #
 #     4,000 TPM -> batch 2 -> 66 calls -> 215,622 tokens total
 #     6,000 TPM -> batch 4 -> 33 calls -> 140,811 tokens total
 #
-# The "safer" 4,000 setting consumes 53% MORE of the shared quota overall. 6,000
-# leaves instantaneous headroom while using far less of the account's total
-# allowance. Raise to ~7,600 only when nobody else is using the key.
+# The "safer" setting consumed 53% more of the account's allowance overall.
+#
+# Raising it to ~7,800 allows 6-clause batches and shaves ~3 minutes off a full
+# run, but leaves only ~150 tokens of headroom -- one denser-than-average
+# document then reserves more than the budget and the call is refused outright.
+# Not worth it for an unattended run.
+#
+# If the key is ever shared again, drop this to ~6,000 so the other user keeps
+# usable headroom.
 RATE_LIMITS = {
     "groq": {
-        "tokens_per_minute": 6000,   # of 8000 published; see the note below
+        "tokens_per_minute": 7600,   # sole use of the key; 400 held back for estimate error
         "min_seconds_between_calls": 3.0,
     },
     "anthropic": {
