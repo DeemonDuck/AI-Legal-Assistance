@@ -70,6 +70,13 @@ class NumericRule:
 class BooleanRule:
     label: str
     adverse_value: bool  # the value that is worse for the person signing
+    # True when holding the adverse value is itself the finding because NO
+    # reference NDA does. Same reasoning as the numeric flag of the same name:
+    # an attribute absent from the whole corpus has no distribution to compare
+    # against, so without this the strongest available signal is discarded.
+    # Found live -- an uncapped indemnity and prevailing-party fee shifting were
+    # both extracted correctly and then silently dropped for want of a baseline.
+    absence_in_market_is_adverse: bool = False
 
 
 # Which direction hurts the signer. In an NDA the person signing is normally the
@@ -93,8 +100,12 @@ NUMERIC_RULES: dict[str, NumericRule] = {
 BOOLEAN_RULES: dict[str, BooleanRule] = {
     "is_mutual": BooleanRule("Mutual obligations", adverse_value=False),
     "liability_capped": BooleanRule("Liability cap", adverse_value=False),
-    "indemnification_present": BooleanRule("Indemnity obligation", adverse_value=True),
-    "attorney_fees_shifting": BooleanRule("Legal-fee shifting", adverse_value=True),
+    "indemnification_present": BooleanRule(
+        "Indemnity obligation", adverse_value=True, absence_in_market_is_adverse=True,
+    ),
+    "attorney_fees_shifting": BooleanRule(
+        "Legal-fee shifting", adverse_value=True, absence_in_market_is_adverse=True,
+    ),
     "injunctive_relief": BooleanRule("Injunctive relief", adverse_value=True),
     "assignment_allowed": BooleanRule("Assignment permitted", adverse_value=False),
     "return_or_destroy_required": BooleanRule("Return/destroy obligation", adverse_value=True),
@@ -445,6 +456,24 @@ def score_document(profile: DocumentProfile, stats: CorpusStats) -> DeviationRep
             continue
         attribute_stats = stats.boolean.get(attribute)
         if attribute_stats is None:
+            rule = BOOLEAN_RULES[attribute]
+            if rule.absence_in_market_is_adverse and bool(value) == rule.adverse_value:
+                report.deviations.append(
+                    Deviation(
+                        attribute=attribute,
+                        label=rule.label,
+                        severity=Severity.HIGH,
+                        document_value=value,
+                        finding=_phrase_boolean(rule, bool(value)),
+                        market=(
+                            f"no reference NDA imposes this "
+                            f"({stats.n_documents} compared)"
+                        ),
+                        why_it_matters=_boolean_rationale(attribute),
+                        clause_index=profile.source_clause.get(attribute),
+                    )
+                )
+                continue
             report.skipped.append(attribute)
             continue
         deviation = _score_boolean(

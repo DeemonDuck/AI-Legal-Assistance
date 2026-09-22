@@ -38,10 +38,10 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
-import anthropic
 from pydantic import BaseModel, Field
 
 from legal_ai import config
+from legal_ai.llm import LLMError, structured, text
 from legal_ai.parsing import RawClause
 from legal_ai.scoring import DeviationReport, Severity
 
@@ -172,10 +172,6 @@ rehearsing it.
 sign. Give them what they need to decide and to negotiate."""
 
 
-def _client() -> anthropic.Anthropic:
-    return anthropic.Anthropic(api_key=config.get_api_key())
-
-
 def _cache_path(payload: str) -> Path:
     digest = hashlib.sha256(
         f"{payload}|{config.NEGOTIATION_MODEL}|{NEGOTIATION_SCHEMA_VERSION}".encode()
@@ -249,41 +245,15 @@ def negotiate(
     )
 
     try:
-        response = _client().messages.parse(
+        parsed = structured(
+            SYSTEM_PROMPT, user_content, NegotiationSet,
             model=config.NEGOTIATION_MODEL,
-            max_tokens=config.MAX_TOKENS,
-            system=[
-                {
-                    "type": "text",
-                    "text": SYSTEM_PROMPT,
-                    "cache_control": {"type": "ephemeral"},
-                }
-            ],
-            messages=[{"role": "user", "content": user_content}],
-            output_format=NegotiationSet,
         )
-    except anthropic.RateLimitError as exc:
+    except LLMError as exc:
         raise RuntimeError(
-            "Anthropic rate limit hit during negotiation. The deviation report "
-            "above is unaffected; retry for negotiating positions."
-        ) from exc
-    except anthropic.APIStatusError as exc:
-        raise RuntimeError(
-            f"Anthropic API error {exc.status_code} during negotiation: {exc.message}"
-        ) from exc
-    except anthropic.APIConnectionError as exc:
-        raise RuntimeError(
-            "Could not reach the Anthropic API for the negotiation stage."
+            f"Negotiation failed: {exc} The deviation report is unaffected."
         ) from exc
 
-    if response.stop_reason == "max_tokens":
-        raise RuntimeError(
-            f"Negotiation hit the {config.MAX_TOKENS}-token cap with "
-            f"{len(report.risks)} flagged terms, so positions are truncated. "
-            "Raise MAX_TOKENS in config.py."
-        )
-
-    parsed = response.parsed_output
     cache_file.write_text(
         json.dumps(
             {
@@ -355,27 +325,14 @@ def draft_email(result: NegotiationResult, *, use_cache: bool = True) -> str:
         return json.loads(cache_file.read_text(encoding="utf-8"))["email"]
 
     try:
-        response = _client().messages.create(
+        email = text(
+            EMAIL_SYSTEM_PROMPT,
+            f"Draft the email requesting these changes:\n\n{payload}",
             model=config.NEGOTIATION_MODEL,
             max_tokens=2000,
-            system=[
-                {
-                    "type": "text",
-                    "text": EMAIL_SYSTEM_PROMPT,
-                    "cache_control": {"type": "ephemeral"},
-                }
-            ],
-            messages=[{
-                "role": "user",
-                "content": f"Draft the email requesting these changes:\n\n{payload}",
-            }],
         )
-    except anthropic.APIStatusError as exc:
-        raise RuntimeError(f"Could not draft the email: {exc.message}") from exc
-
-    email = "".join(
-        block.text for block in response.content if block.type == "text"
-    ).strip()
+    except LLMError as exc:
+        raise RuntimeError(f"Could not draft the email: {exc}") from exc
 
     cache_file.write_text(json.dumps({"email": email}), encoding="utf-8")
     return email
