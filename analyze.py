@@ -19,8 +19,18 @@ from pathlib import Path
 # clone runnable with nothing but `pip install -r requirements.txt`.
 sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
 
+from legal_ai.corpus import load_stats  # noqa: E402
 from legal_ai.extract import extract_clauses  # noqa: E402
 from legal_ai.parsing import parse_document  # noqa: E402
+from legal_ai.profile import build_profile  # noqa: E402
+from legal_ai.scoring import Severity, score_document  # noqa: E402
+
+SEVERITY_MARK = {
+    Severity.HIGH: "[HIGH]",
+    Severity.MEDIUM: "[MED ]",
+    Severity.LOW: "[LOW ]",
+    Severity.FAVOURABLE: "[GOOD]",
+}
 
 
 def _print_parse(clauses) -> None:
@@ -59,6 +69,42 @@ def _print_extraction(result) -> None:
             print(f"    SIGNALS   : {', '.join(ext.aggressiveness_signals)}")
 
 
+def _print_report(report, clauses) -> None:
+    print("\n" + "=" * 78)
+    print(f"DEVIATION REPORT  --  {report.document}")
+    print("=" * 78)
+    print(f"\n{report.headline()}")
+    print(f"{report.corpus_note}")
+
+    if not report.deviations:
+        print("\nNothing deviates from the reference corpus.")
+    else:
+        print()
+
+    for d in report.deviations:
+        where = ""
+        if d.clause_index is not None and d.clause_index < len(clauses):
+            heading = clauses[d.clause_index].heading
+            if heading:
+                where = f"  (see: {heading})"
+
+        print(f"{SEVERITY_MARK[d.severity]} {d.label}{where}")
+        print(f"        this document : {d.finding}")
+        print(f"        reference NDAs: {d.market}")
+        print(f"        why it matters: {d.why_it_matters}")
+        print()
+
+    if report.skipped:
+        print(
+            "Not checked (no baseline in the corpus for these): "
+            + ", ".join(sorted(set(report.skipped)))
+        )
+
+    print("-" * 78)
+    print("This is information, not legal advice, and does not replace a lawyer.")
+    print("-" * 78)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Extract structured data from an NDA.")
     parser.add_argument("document", type=Path, help="Path to a PDF, DOCX, or TXT NDA")
@@ -71,6 +117,11 @@ def main() -> int:
         "--no-cache",
         action="store_true",
         help="Force a fresh API call instead of reusing a cached extraction.",
+    )
+    parser.add_argument(
+        "--clauses",
+        action="store_true",
+        help="Also print the per-clause extraction, not just the deviation report.",
     )
     args = parser.parse_args()
 
@@ -94,7 +145,21 @@ def main() -> int:
         print(f"\n{exc}", file=sys.stderr)
         return 1
 
-    _print_extraction(result)
+    if args.clauses:
+        _print_extraction(result)
+
+    # Scoring needs a corpus baseline. Missing stats is a setup problem with a
+    # one-command fix, so say that rather than failing with a stack trace.
+    try:
+        stats = load_stats()
+    except RuntimeError as exc:
+        print(f"\n{exc}", file=sys.stderr)
+        if not args.clauses:
+            print("Extraction succeeded; rerun with --clauses to see it.", file=sys.stderr)
+        return 1
+
+    profile = build_profile(args.document.stem, result.extracted)
+    _print_report(score_document(profile, stats), result.raw_clauses)
     return 0
 
 
