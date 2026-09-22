@@ -14,9 +14,17 @@ NDA (PDF/DOCX)
   -> LLM extracts typed attributes per clause (term_months, is_mutual, carve_outs, ...)
   -> compare each attribute against the same attribute across a market corpus
   -> flag the outliers
-  -> two personas debate each flagged clause, a synthesizer produces
-     risk level + plain explanation + suggested redline
+  -> both sides of each flagged term are argued in one structured call,
+     producing risk level + plain explanation + suggested redline + fallback
 ```
+
+Three stages, three different tools, deliberately:
+
+| Stage | How | Why |
+|---|---|---|
+| Extraction | LLM, structured output | Reading unstructured legal prose into typed facts is the part that needs a model |
+| Scoring | Pure arithmetic, no LLM | Reproducible and falsifiable — same document, same findings, every run |
+| Negotiation | LLM, structured output | Writing arguments and redlines is generative work |
 
 ### Why attributes and not embedding similarity
 
@@ -39,6 +47,16 @@ cp .env.example .env    # then paste your ANTHROPIC_API_KEY into it
 
 Moving between machines: see [DEVICE_SETUP.md](DEVICE_SETUP.md).
 
+## Quick start
+
+```bash
+py -m venv .venv
+.venv/Scripts/python.exe -m pip install -r requirements.txt
+cp .env.example .env          # add your ANTHROPIC_API_KEY
+py build_corpus.py            # build market baselines (8 API calls, then cached)
+streamlit run app.py          # or use the CLI below
+```
+
 ## Usage
 
 ```bash
@@ -54,6 +72,12 @@ py analyze.py --no-cache data/my_nda.pdf
 # Build the market-standard distributions the scorer compares against
 py build_corpus.py
 py build_corpus.py --show     # print saved stats without rebuilding
+
+# Negotiating positions for each flagged term (1 extra API call)
+py analyze.py --negotiate data/golden/aggressive_nda_01.txt
+
+# ...and a draft negotiation email
+py analyze.py --email data/golden/aggressive_nda_01.txt
 
 # Measure the scorer against hand-written ground truth
 py evaluate.py
@@ -95,7 +119,9 @@ same document is instant and free. Delete `.cache/` to force re-extraction.
 | `src/legal_ai/scoring.py` | Deviation scoring. Deterministic, no LLM calls. |
 | `src/legal_ai/evaluation.py` | Measures the scorer against ground truth. |
 | `analyze.py` | Analyse a single NDA. |
+| `src/legal_ai/negotiate.py` | Flagged terms -> negotiating positions. The generative stage. |
 | `evaluate.py` | Run the eval. |
+| `app.py` | Streamlit UI. Presentation only; `src/` never imports Streamlit. |
 | `build_corpus.py` | Build market statistics from `data/corpus/`. |
 | `data/corpus/` | Market-standard NDA templates |
 | `data/golden/` | Eval set: clean NDAs with known aggressive terms planted |
