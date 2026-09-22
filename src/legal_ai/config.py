@@ -62,7 +62,7 @@ NEGOTIATION_MODEL = MODELS[PROVIDER]["negotiation"]
 # REQUESTED max_tokens against the per-minute budget, not just what the model
 # generates -- so a large ceiling alone can exceed the limit and every request
 # is rejected with a 413 before the model even runs.
-MAX_TOKENS_BY_PROVIDER = {"groq": 1700, "anthropic": 8000}
+MAX_TOKENS_BY_PROVIDER = {"groq": 2400, "anthropic": 8000}
 MAX_TOKENS = MAX_TOKENS_BY_PROVIDER[PROVIDER]
 
 # --- Rate limiting -----------------------------------------------------------

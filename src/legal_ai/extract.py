@@ -36,17 +36,23 @@ from legal_ai.schemas import ClauseExtraction, ExtractedClause
 SCHEMA_VERSION = "2"
 
 # Strict structured output requires every attribute on every clause, so a clause
-# emits all 16 fields even when 14 are null. MEASURED on gpt-oss-120b at
-# reasoning_effort=low: 1278 completion tokens for 4 clauses, i.e. ~320 each,
-# of which ~280 total is reasoning overhead. An earlier guess of 350 was too low
-# because it ignored reasoning tokens entirely, and every batch truncated.
+# emits all 16 fields even when 14 are null.
+#
+# MEASURED on gpt-oss-120b at reasoning_effort=low: 1278 completion tokens for
+# 4 clauses. But reasoning spend varies widely between documents -- 283 to 1433
+# tokens on same-sized inputs -- so a value fitted to one measurement truncates
+# on denser documents, which is exactly what happened on the first paced run.
+#
+# 480 is deliberately above the measured average, and _extract_batch() halves
+# and retries anything that still overflows. Sizing for the common case with a
+# fallback beats sizing for the worst case and wasting the budget every call.
 #
 # Documents are therefore split into batches that fit the output ceiling rather
 # than being sent whole and truncated. Truncation is the dangerous failure here:
 # it looks like a successful analysis of a shorter document. Batching costs some
 # cross-clause context, which is a real loss (see the module docstring) but a
 # smaller one than silently losing half a document.
-TOKENS_PER_CLAUSE = 340
+TOKENS_PER_CLAUSE = 480
 BATCH_SAFETY_FACTOR = 0.8
 
 
@@ -130,6 +136,51 @@ def _format_clauses(clauses: list[RawClause]) -> str:
     return "\n\n".join(blocks)
 
 
+def _extract_batch(batch: list[RawClause]) -> list[ExtractedClause]:
+    """Extract one batch, halving and retrying if the response is truncated.
+
+    A fixed batch size cannot be right for every document. Output length depends
+    on how dense the clauses are and on how many reasoning tokens the model
+    decides to spend -- measured between 283 and 1433 on identical-sized inputs.
+    Tuning the batch to the worst case would waste most of the budget on the
+    common case, and tuning it to the average truncates the dense documents.
+
+    So the batch size is set for the common case and shrinks on demand. A
+    truncated response is detected, the batch is split in half, and each half is
+    retried. Cost is one wasted call on the documents that need it, instead of a
+    failed run or a permanently oversized ceiling.
+    """
+    user_content = (
+        f"Extract structured data from the following {len(batch)} NDA clauses."
+        f"\n\n{_format_clauses(batch)}"
+    )
+    try:
+        return list(
+            structured(
+                SYSTEM_PROMPT, user_content, ClauseExtraction,
+                model=config.EXTRACTION_MODEL,
+            ).clauses
+        )
+    except LLMError as exc:
+        truncated = "truncated" in str(exc)
+        if truncated and len(batch) > 1:
+            middle = len(batch) // 2
+            print(
+                f"  ! {len(batch)} clauses exceeded the output cap; "
+                f"splitting into {middle} + {len(batch) - middle}"
+            )
+            return _extract_batch(batch[:middle]) + _extract_batch(batch[middle:])
+
+        if truncated:
+            # A single clause that will not fit is a real limit, not variance.
+            raise RuntimeError(
+                "A single clause exceeded the output cap. Raise MAX_TOKENS in "
+                "config.py -- and check RATE_LIMIT, since a larger ceiling also "
+                "reserves more of the per-minute budget."
+            ) from exc
+        raise RuntimeError(f"Extraction failed: {exc}") from exc
+
+
 def extract_clauses(clauses: list[RawClause], *, use_cache: bool = True) -> ExtractionResult:
     """Extract typed attributes for every clause in one API call.
 
@@ -152,20 +203,8 @@ def extract_clauses(clauses: list[RawClause], *, use_cache: bool = True) -> Extr
     batches = [clauses[i:i + size] for i in range(0, len(clauses), size)]
 
     extracted: list[ExtractedClause] = []
-    for number, batch in enumerate(batches, start=1):
-        label = f" (part {number} of {len(batches)})" if len(batches) > 1 else ""
-        user_content = (
-            f"Extract structured data from the following {len(batch)} NDA "
-            f"clauses{label}.\n\n{_format_clauses(batch)}"
-        )
-        try:
-            parsed = structured(
-                SYSTEM_PROMPT, user_content, ClauseExtraction,
-                model=config.EXTRACTION_MODEL,
-            )
-        except LLMError as exc:
-            raise RuntimeError(f"Extraction failed: {exc}") from exc
-        extracted.extend(parsed.clauses)
+    for batch in batches:
+        extracted.extend(_extract_batch(batch))
 
     # The model can return a different count than was sent. Align rather than
     # crash -- a truncated report is recoverable, a hard failure mid-demo is not
