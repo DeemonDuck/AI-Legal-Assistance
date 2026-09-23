@@ -78,17 +78,85 @@ and say out loud in a conversation.
 
 ## Try it
 
+### Run the dashboard on your own machine
+
 ```bash
 py -m venv .venv
 .venv/Scripts/python.exe -m pip install -r requirements.txt
 
-cp .env.example .env          # add your ANTHROPIC_API_KEY
-py build_corpus.py            # learn what "normal" looks like (8 API calls)
-streamlit run app.py          # opens in your browser
+cp .env.example .env               # then paste your key into it
+.venv/Scripts/python.exe -m streamlit run app.py
 ```
 
-There is a sample document at `data/golden/aggressive_nda_01.txt` with eight
-deliberately unusual terms, if you want to see it find something.
+That opens at **http://localhost:8501**.
+
+Upload `data/golden/aggressive_nda_01.txt` — a document with eight deliberately
+unusual terms. It should report seven high-risk findings **instantly and without
+making a single API call**, because the analysis for the three sample documents
+ships with the repository.
+
+You do not need to build anything first. The market baseline
+(`data/corpus_index/corpus_stats.json`) is committed, so a fresh clone is a
+working program. Rebuild it only if you change the corpus or the extraction
+schema:
+
+```bash
+py build_corpus.py                 # ~21 API calls, ~21 minutes on a free tier
+```
+
+<details>
+<summary><b>▸ Getting a key</b></summary>
+
+The default provider is **Groq**, whose free tier is enough to run everything
+here. Create a key at [console.groq.com](https://console.groq.com/keys) and put
+it in `.env`:
+
+```
+LLM_PROVIDER=groq
+GROQ_API_KEY=gsk_your-key-here
+```
+
+Anthropic works too — set `LLM_PROVIDER=anthropic` and `ANTHROPIC_API_KEY`
+instead. Nothing else changes; the provider is swapped in one place
+(`legal_ai/llm.py`) and the pipeline never learns which one it is talking to.
+
+**Free tiers have two separate limits**, and the second one surprises people:
+tokens *per minute* and tokens *per day*. This project paces itself against both
+rather than firing requests and retrying whatever gets rejected. On Groq's free
+tier expect roughly one request per minute, so analysing a fresh twelve-clause
+NDA takes about three minutes. The waiting messages are the rate limiter working,
+not a hang.
+
+</details>
+
+<details>
+<summary><b>▸ Putting it online (Streamlit Community Cloud, free)</b></summary>
+
+1. Push your fork to GitHub.
+2. At [share.streamlit.io](https://share.streamlit.io), sign in with GitHub and
+   choose **New app**.
+3. Point it at your repository, branch `main`, main file `app.py`. Set the Python
+   version to 3.11 or newer under **Advanced settings**.
+4. Paste your key into the **Secrets** box. This is TOML, not `.env` — quotes and
+   spaces around `=` are required:
+
+   ```toml
+   LLM_PROVIDER = "groq"
+   GROQ_API_KEY = "gsk_your-key-here"
+   ```
+
+5. Deploy. The first build takes a few minutes.
+
+`app.py` copies those secrets into the environment at startup, because Streamlit
+Cloud exposes them through `st.secrets` rather than as environment variables. The
+copy lives in the front end so that nothing under `src/` depends on Streamlit.
+
+**A deployed instance shares your API key with everyone who opens the URL.** The
+three sample documents cost nothing because their analysis is cached in the
+repository, but any other upload spends your allowance. Treat a public link
+accordingly.
+
+</details>
 
 <details>
 <summary><b>▸ Command-line usage</b></summary>
@@ -107,8 +175,11 @@ py analyze.py --negotiate path/to/nda.pdf
 py analyze.py --email path/to/nda.pdf
 
 # Corpus and evaluation
-py build_corpus.py --show     # print saved market statistics
+py build_corpus.py --show     # print saved market statistics, no API calls
 py evaluate.py                # measure the scorer against ground truth
+
+# What changed between two extraction schema versions. No API calls.
+py compare_runs.py --doc aggressive_nda_01
 
 # Offline tests — no API key needed
 py tests/test_stats.py
@@ -119,6 +190,13 @@ py tests/test_negotiate.py
 
 Results are cached by document content, so re-running a document is instant and
 free. Delete `.cache/` to force re-extraction.
+
+`evaluate.py` refuses to run if the market baseline was built under a different
+extraction schema than the one in the code. Comparing documents read by one set
+of field descriptions against a baseline built from another produces a plausible
+score rather than an error, so it is stopped rather than warned about. Rebuild
+with `py build_corpus.py`, or pass `--allow-stale-corpus` to reproduce an earlier
+measurement deliberately.
 
 Moving between machines: see [DEVICE_SETUP.md](DEVICE_SETUP.md). Use git, not a
 zip — `.venv` contains absolute paths and breaks when moved.
@@ -331,7 +409,14 @@ advance**:
 The third matters most. **A tool that flags everything catches every problem and
 is completely useless.** The ordinary document is what stops that.
 
-Run `py evaluate.py` to see the current score.
+Currently **11 of 11 planted terms found, with no false positives**: eight of
+eight on the aggressive document, three of three on the mixed one, and silence
+on the control. The mixed document raised one high-risk finding against a budget
+of two — it discriminates rather than flagging in bulk.
+
+Read that number with the caveat the tool prints for itself: it measures the
+scorer against **eight reference NDAs**, which is not the same as measuring it
+against the market. Run `py evaluate.py` to reproduce it.
 
 <details>
 <summary><b>▸ Methodology</b></summary>
@@ -402,6 +487,7 @@ Roughly ordered by improvement per unit of work:
 |---|---|
 | **Use real NDAs as the comparison set** | The single highest-value change. Public company filings contain thousands of real ones. Turns every claim from "unusual compared to our examples" into a defensible statement about the market. |
 | **More of them — 20, 50, 100** | Makes the statistics meaningful rather than indicative. |
+| **Count silence as data, not absence** | Some findings currently rest on one or two reference documents, because a document that says nothing about indemnity contributes nothing to that attribute's baseline. But silence *is* the answer — an NDA that never mentions indemnity does not impose one. Counting those documents would take several denominators from 1 or 2 up to 8, and would change some severities. |
 | **Separate comparison sets by context** | Startup NDAs and enterprise vendor NDAs have genuinely different norms. One pooled baseline hides that; comparing like with like would sharpen every finding. |
 | **Test the reading step on its own** | The eval currently measures the whole pipeline. Checking extraction against hand-labelled clauses would localise failures rather than leaving them ambiguous. |
 | **Let the AI say when it is unsure** | Mark uncertain readings as provisional instead of presenting every finding with equal confidence. |
