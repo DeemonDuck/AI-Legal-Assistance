@@ -21,6 +21,14 @@ outputs/
 .cache/
 *.log
 
+# Saved terminal output from a run (run_v3.txt, corpus_v3.txt, eval_v3.txt...).
+# Useful while comparing one run against the next, but it is a record of one
+# machine's session, not source -- and PowerShell's Tee-Object writes it as
+# UTF-16, which diffs badly and would be a recurring nuisance in review.
+run_*.txt
+corpus_*.txt
+eval_*.txt
+
 # OS / editor
 .DS_Store
 Thumbs.db
