@@ -15,11 +15,31 @@ __pycache__/
 # Node
 node_modules/
 
-# Generated artifacts
-data/corpus_index/
+# Generated artifacts.
+#
+# Note the trailing /* rather than /. Git cannot re-include a file whose parent
+# DIRECTORY is excluded, so "data/corpus_index/" would make the negations below
+# silently do nothing. Excluding the contents instead leaves the directory
+# itself visible and lets specific files be added back.
+data/corpus_index/*
 outputs/
-.cache/
+.cache/*
 *.log
+
+# ...except the market baseline. It is generated, but the app cannot run without
+# it: load_stats() raises and every deviation score is undefined. A deployed
+# instance has no way to produce it -- rebuilding costs 21 API calls and ~21
+# minutes on every cold start -- so it ships as reference data. 4 KB.
+!data/corpus_index/corpus_stats.json
+
+# ...and the three demo documents' extractions. Without these a public demo
+# makes live API calls at one per minute, so a twelve-clause NDA takes ~3
+# minutes to display and anyone visiting the URL spends the day's token
+# allowance. Keyed by content + model + schema version, so they are ignored
+# automatically if any of those change -- stale data cannot be served.
+!.cache/extract_2121191bbfb18235.json
+!.cache/extract_ffa7d0ece508e808.json
+!.cache/extract_25831d1fcaa38c03.json
 
 # Saved terminal output from a run (run_v3.txt, corpus_v3.txt, eval_v3.txt...).
 # Useful while comparing one run against the next, but it is a record of one

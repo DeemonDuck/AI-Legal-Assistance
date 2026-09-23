@@ -1,0 +1,124 @@
+{
+  "n_documents": 8,
+  "built_on": "2026-09-23",
+  "provenance": "synthetic reference drafts shipped with the repository",
+  "documents": [
+    "mutual_ma_18mo",
+    "mutual_partnership_3yr",
+    "mutual_standard_2yr",
+    "mutual_startup_3yr",
+    "mutual_vendor_5yr",
+    "unilateral_employment_2yr",
+    "unilateral_investor_2yr",
+    "unilateral_standard_3yr"
+  ],
+  "numeric": {
+    "term_months": {
+      "n": 8,
+      "n_perpetual": 0,
+      "minimum": 18.0,
+      "p25": 24.0,
+      "median": 30.0,
+      "p75": 36.0,
+      "p90": 43.199999999999996,
+      "maximum": 60.0,
+      "values": [
+        18.0,
+        24.0,
+        24.0,
+        24.0,
+        36.0,
+        36.0,
+        36.0,
+        60.0
+      ]
+    },
+    "non_solicit_months": {
+      "n": 2,
+      "n_perpetual": 0,
+      "minimum": 12.0,
+      "p25": 12.0,
+      "median": 12.0,
+      "p75": 12.0,
+      "p90": 12.0,
+      "maximum": 12.0,
+      "values": [
+        12.0,
+        12.0
+      ]
+    },
+    "notice_period_days": {
+      "n": 6,
+      "n_perpetual": 0,
+      "minimum": 14.0,
+      "p25": 30.0,
+      "median": 30.0,
+      "p75": 30.0,
+      "p90": 45.0,
+      "maximum": 60.0,
+      "values": [
+        14.0,
+        30.0,
+        30.0,
+        30.0,
+        30.0,
+        60.0
+      ]
+    }
+  },
+  "boolean": {
+    "is_mutual": {
+      "n": 8,
+      "n_true": 5
+    },
+    "injunctive_relief": {
+      "n": 8,
+      "n_true": 8
+    },
+    "liability_capped": {
+      "n": 2,
+      "n_true": 1
+    },
+    "indemnification_present": {
+      "n": 1,
+      "n_true": 0
+    },
+    "assignment_allowed": {
+      "n": 5,
+      "n_true": 2
+    },
+    "return_or_destroy_required": {
+      "n": 8,
+      "n_true": 8
+    }
+  },
+  "carve_outs": {
+    "n": 8,
+    "counts": {
+      "already_known_to_recipient": 8,
+      "publicly_available": 8,
+      "independently_developed": 8,
+      "rightfully_received_from_third_party": 7,
+      "required_by_law_or_court_order": 8
+    }
+  },
+  "jurisdictions": {
+    "n": 8,
+    "counts": {
+      "Delaware": 2,
+      "Washington": 1,
+      "California": 1,
+      "Texas": 1,
+      "Illinois": 1,
+      "New York": 2
+    }
+  },
+  "dispute_forums": {
+    "n": 8,
+    "counts": {
+      "courts": 6,
+      "binding_arbitration": 2
+    }
+  },
+  "schema_version": "3"
+}
