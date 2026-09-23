@@ -29,6 +29,8 @@ def _print_summary(stats) -> None:
     print("\n" + "=" * 74)
     print(f"CORPUS STATISTICS  --  {stats.n_documents} documents, built {stats.built_on}")
     print(f"Provenance: {stats.provenance}")
+    version = f"v{stats.schema_version}" if stats.schema_version else "unrecorded (built before versions were stamped)"
+    print(f"Extraction schema: {version}")
     print("=" * 74)
 
     if stats.numeric:

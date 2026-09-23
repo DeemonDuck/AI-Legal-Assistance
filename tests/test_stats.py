@@ -140,6 +140,29 @@ check("small corpus flagged as not credible", stats.is_credible, False)
 check("credibility note warns",
       "indicative" in stats.credibility_note(), True)
 
+# Schema version stamping. Statistics built under one set of field descriptions
+# and scored against documents read under another produce a plausible number
+# with no error, which is why this is a hard gate rather than a warning.
+from dataclasses import replace  # noqa: E402
+
+from legal_ai.extract import SCHEMA_VERSION  # noqa: E402
+
+check("stats record the current schema version", stats.schema_version, SCHEMA_VERSION)
+check("matching version reports no mismatch",
+      stats.schema_mismatch(SCHEMA_VERSION), None)
+check("differing version reports a mismatch",
+      stats.schema_mismatch("999") is not None, True)
+check("mismatch message names the rebuild command",
+      "build_corpus.py" in stats.schema_mismatch("999"), True)
+
+# A statistics file written before versions were stamped loads with None, and
+# must be treated as a mismatch rather than assumed current.
+legacy = replace(stats, schema_version=None)
+check("unstamped legacy stats are a mismatch",
+      legacy.schema_mismatch(SCHEMA_VERSION) is not None, True)
+check("legacy mismatch says so in words",
+      "unrecorded" in legacy.schema_mismatch(SCHEMA_VERSION), True)
+
 
 print("\n" + "=" * 60)
 if failures:

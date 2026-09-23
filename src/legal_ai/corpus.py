@@ -30,7 +30,7 @@ from datetime import date
 from pathlib import Path
 
 from legal_ai import config
-from legal_ai.extract import extract_document
+from legal_ai.extract import SCHEMA_VERSION, extract_document
 from legal_ai.profile import PERPETUAL, DocumentProfile, build_profile
 from legal_ai.schemas import (
     BOOLEAN_SCORED_ATTRIBUTES,
@@ -109,9 +109,54 @@ class CorpusStats:
     jurisdictions: FrequencyStats
     dispute_forums: FrequencyStats
 
+    # Which extraction schema produced the data underneath these numbers.
+    #
+    # WHY THIS EXISTS. Extractions are cached under a key that includes
+    # SCHEMA_VERSION, so a schema change can never serve stale clause data. But
+    # these statistics are DERIVED from those extractions and were, until this
+    # field, unversioned -- so the guard protected the layer below and the
+    # mixing happened here, where nothing was watching.
+    #
+    # It happened. The v3 rewrite of notice_period_days widened the field from
+    # "any required notice period" to any deadline including return, destruction
+    # and certification. The eval documents were re-read under v3 while the
+    # baseline stayed on v2, which compares three-day destruction deadlines
+    # against a distribution that had mostly counted thirty-day notice periods.
+    # The scorecard looked clean and said nothing about it.
+    #
+    # Defaults to None so that statistics files written before this field was
+    # added still load -- and are correctly reported as of unknown provenance
+    # rather than assumed current.
+    schema_version: str | None = None
+
     @property
     def is_credible(self) -> bool:
         return self.n_documents >= MIN_DOCUMENTS_FOR_CREDIBLE_STATS
+
+    def schema_mismatch(self, current: str) -> str | None:
+        """Why this baseline cannot be trusted against `current`, or None if it can.
+
+        Returns a message rather than a bool because every caller needs to tell
+        the user what to do about it, and the fix is the same command each time.
+        """
+        if self.schema_version == current:
+            return None
+
+        was = (
+            f"schema v{self.schema_version}"
+            if self.schema_version
+            else "an unrecorded schema version (built before versions were stamped)"
+        )
+        return (
+            f"The market baseline was built under {was}, but extraction is now "
+            f"on v{current}.\n"
+            "Field descriptions changed between those versions, so the reference "
+            "NDAs and the document being scored were read by different "
+            "instructions. Percentiles computed across that boundary compare "
+            "unlike things and can move a finding's severity without any visible "
+            "error.\n"
+            "Rebuild the baseline:  py build_corpus.py"
+        )
 
     def credibility_note(self) -> str:
         """The sentence any report should carry. Phrased so it can be shown to a
@@ -239,6 +284,7 @@ def build_stats(profiles: list[DocumentProfile], *, provenance: str) -> CorpusSt
         carve_outs=FrequencyStats(n=documents_with_carve_data, counts=carve_counts),
         jurisdictions=_frequency("governing_law_jurisdiction"),
         dispute_forums=_frequency("dispute_forum"),
+        schema_version=SCHEMA_VERSION,
     )
 
 
@@ -301,4 +347,8 @@ def load_stats(path: Path | None = None) -> CorpusStats:
         carve_outs=FrequencyStats(**raw["carve_outs"]),
         jurisdictions=FrequencyStats(**raw["jurisdictions"]),
         dispute_forums=FrequencyStats(**raw["dispute_forums"]),
+        # .get, not [], so a statistics file written before this field existed
+        # loads as "unknown" instead of crashing. Callers treat unknown as a
+        # mismatch, which is the safe reading.
+        schema_version=raw.get("schema_version"),
     )

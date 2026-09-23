@@ -31,7 +31,7 @@ from legal_ai.evaluation import (  # noqa: E402
     evaluate_report,
     load_expectations,
 )
-from legal_ai.extract import extract_document  # noqa: E402
+from legal_ai.extract import SCHEMA_VERSION, extract_document  # noqa: E402
 from legal_ai.profile import build_profile  # noqa: E402
 from legal_ai.scoring import Severity, score_document  # noqa: E402
 
@@ -48,6 +48,13 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Evaluate the deviation scorer.")
     parser.add_argument("--verbose", action="store_true", help="List every finding.")
     parser.add_argument("--no-cache", action="store_true", help="Force fresh extraction.")
+    parser.add_argument(
+        "--allow-stale-corpus",
+        action="store_true",
+        help="Run even if the baseline was built under a different extraction "
+        "schema. The resulting score is not comparable; use only to reproduce "
+        "an earlier measurement deliberately.",
+    )
     args = parser.parse_args()
 
     # A document in both sets silently inflates every score, so this is checked
@@ -70,6 +77,17 @@ def main() -> int:
     except RuntimeError as exc:
         print(f"{exc}", file=sys.stderr)
         return 1
+
+    # Checked for the same reason as leakage above: it produces a plausible
+    # number rather than an error, so nothing downstream can catch it. An eval
+    # score is a claim about the whole pipeline, and it is only a claim worth
+    # making when both sides of the comparison were read the same way.
+    mismatch = stats.schema_mismatch(SCHEMA_VERSION)
+    if mismatch:
+        if not args.allow_stale_corpus:
+            print(f"ABORTED: {mismatch}", file=sys.stderr)
+            return 1
+        print(f"WARNING: {mismatch}\n(continuing: --allow-stale-corpus)\n")
 
     result = EvalResult()
     print(f"Evaluating {len(expectations)} documents against "
