@@ -14,11 +14,33 @@ who lands mid-report should not have to scroll to learn the tool is not a lawyer
 
 from __future__ import annotations
 
+import os
 import sys
 import tempfile
 from pathlib import Path
 
 import streamlit as st
+
+# Streamlit Cloud supplies secrets through st.secrets, not the environment, so a
+# key configured correctly in the dashboard would sit there unread and the app
+# would fail at startup claiming no key was set.
+#
+# Copied into os.environ HERE, before legal_ai is imported, for two reasons.
+# First, config.py reads LLM_PROVIDER at import time, so a later copy would be
+# too late. Second, this keeps the Streamlit dependency in the front end: config
+# .py never learns that Streamlit exists, and the pipeline stays runnable from
+# the CLI and from tests with no browser and no Streamlit install.
+#
+# Existing environment variables win, so a local .env still takes precedence.
+for _secret in ("LLM_PROVIDER", "GROQ_API_KEY", "ANTHROPIC_API_KEY"):
+    if _secret not in os.environ:
+        try:
+            if _secret in st.secrets:
+                os.environ[_secret] = str(st.secrets[_secret])
+        except Exception:
+            # No secrets.toml at all is the normal local case, and st.secrets
+            # raises rather than returning empty. Not an error worth surfacing.
+            pass
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
 

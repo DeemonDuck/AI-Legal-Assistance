@@ -1,0 +1,22 @@
+# Streamlit configuration. Committed deliberately -- this file holds no secrets.
+# .streamlit/secrets.toml is the one that does, and it stays gitignored.
+
+[server]
+# NDAs are text documents. The 200 MB default invites someone to upload a
+# 150 MB scanned contract that the parser will reject anyway, after the upload.
+# Failing at the file picker is kinder than failing after a long wait.
+maxUploadSize = 10
+
+# Usage stats are off because uploads here are draft legal agreements. Nothing
+# leaves the process except the clause text sent to the model, and that should
+# stay true of telemetry too.
+[browser]
+gatherUsageStats = false
+
+[theme]
+# Readable at projector contrast, which is where this gets demonstrated.
+base = "light"
+primaryColor = "#b3261e"          # matches the HIGH-risk colour in app.py
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f3f4f6"
+textColor = "#1f2328"
