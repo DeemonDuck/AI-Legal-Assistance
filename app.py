@@ -50,7 +50,7 @@ from legal_ai.negotiate import draft_email, negotiate  # noqa: E402
 from legal_ai.profile import build_profile  # noqa: E402
 from legal_ai.scoring import Severity, score_document  # noqa: E402
 
-st.set_page_config(page_title="NDA Reviewer", page_icon="::", layout="wide")
+st.set_page_config(page_title="NDA Reviewer", page_icon="⚖️", layout="wide")
 
 SEVERITY_STYLE = {
     Severity.HIGH: ("#b3261e", "HIGH RISK"),
@@ -96,7 +96,7 @@ with st.sidebar:
         stats = load_stats()
         st.metric("Reference NDAs", stats.n_documents)
         if not stats.is_credible:
-            st.warning(stats.credibility_note(), icon=":")
+            st.warning(stats.credibility_note(), icon="⚠️")
         st.caption(f"Corpus: {stats.provenance}")
         st.caption(f"Built {stats.built_on}")
     except RuntimeError:
