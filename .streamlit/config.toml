@@ -15,8 +15,8 @@ gatherUsageStats = false
 
 [theme]
 # Readable at projector contrast, which is where this gets demonstrated.
-base = "light"
-primaryColor = "#b3261e"          # matches the HIGH-risk colour in app.py
-backgroundColor = "#ffffff"
-secondaryBackgroundColor = "#f3f4f6"
-textColor = "#1f2328"
+base = "dark"
+primaryColor = "#4F8CFF"
+backgroundColor = "#0E1117"
+secondaryBackgroundColor = "#161B22"
+textColor = "#FAFAFA"
