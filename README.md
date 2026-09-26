@@ -538,38 +538,6 @@ no eval** — it produces a number that looks like evidence while proving nothin
 
 ---
 
-## Accessibility
-
-Target: **WCAG 2.1 Level AA**. The parts that can be settled by arithmetic are
-asserted in [`tests/test_accessibility.py`](tests/test_accessibility.py), which
-recomputes them from the shipped palette and theme rather than from a copy — so
-the claim below stays true, or CI goes red.
-
-| | |
-|---|---|
-| **Contrast** | Every severity badge clears 4.5:1 against its white text — 5.43:1 to 6.54:1. Body text runs 18.11:1 on the page and 16.57:1 on cards; the accent colour 5.87:1. The badge text is 12px, below the threshold where the relaxed 3:1 rule for large text would apply, so the full ratio is held to. |
-| **Never colour alone** | Every badge states its level in words — HIGH RISK, MODERATE, MINOR, IN YOUR FAVOUR. Roughly 1 in 12 men cannot reliably separate the red chip from the amber one, and a risk indicator only some readers can read is not an indicator. |
-| **Heading structure** | `h1` → `h2` with no skipped levels, so a screen reader's heading outline matches the visual one. |
-| **Labelled controls** | Every input, button and expander has a text label; the uploader carries help text naming what it accepts. |
-| **No internal identifiers on screen** | The pipeline calls a term `non_solicit_months`; the interface says "Non-solicitation period". A screen reader would otherwise announce "non underscore solicit underscore months". |
-| **Severity chips name what they describe** | The chip renders in its own column beside the finding, so it carries an `aria-label` restating the pairing ("HIGH RISK: Confidentiality term") instead of announcing a bare "HIGH RISK" with nothing attached. |
-| **Reflow** | Suggested redlines are single unbroken paragraphs of contract wording. `st.code` does not wrap by default — it scrolls sideways, which fails 1.4.10 and is unusable on a phone — so they are rendered with `wrap_lines=True`. |
-| **Plain language** | Findings are written for a non-lawyer, and the eight unavoidable terms have a [glossary](#plain-english-glossary). |
-
-**Known gaps, stated rather than glossed:**
-
-- No screen-reader testing has been done. The claims above rest on measured
-  ratios and on Streamlit's documented element-to-tag mapping, not on a session
-  with NVDA or VoiceOver. That is the obvious next step.
-- No skip-to-content link, and results are not announced through an ARIA live
-  region when they finish rendering. Both would mean injecting HTML or
-  JavaScript into Streamlit's own DOM, which is a fragile thing to do for a
-  framework that owns its markup.
-- Streamlit's own chrome — its menus, spinners and file picker — is upstream,
-  and its conformance is not something this project can assert.
-
----
-
 ## Privacy and handling of uploads
 
 An NDA is usually a draft agreement someone has not signed yet, so it is worth
