@@ -29,13 +29,19 @@ def _print_summary(stats) -> None:
     print("\n" + "=" * 74)
     print(f"CORPUS STATISTICS  --  {stats.n_documents} documents, built {stats.built_on}")
     print(f"Provenance: {stats.provenance}")
-    version = f"v{stats.schema_version}" if stats.schema_version else "unrecorded (built before versions were stamped)"
+    version = (
+        f"v{stats.schema_version}" if stats.schema_version
+        else "unrecorded (built before versions were stamped)"
+    )
     print(f"Extraction schema: {version}")
     print("=" * 74)
 
     if stats.numeric:
         print("\nDURATIONS (months) -- percentiles over finite values only")
-        header = f"  {'attribute':<24} {'n':>3} {'min':>6} {'p25':>6} {'med':>6} {'p75':>6} {'max':>6}  perpetual"
+        header = (
+            f"  {'attribute':<24} {'n':>3} {'min':>6} {'p25':>6} "
+            f"{'med':>6} {'p75':>6} {'max':>6}  perpetual"
+        )
         print(header)
         print("  " + "-" * (len(header) - 2))
         for name, s in stats.numeric.items():
@@ -51,7 +57,7 @@ def _print_summary(stats) -> None:
         print("\nSTRUCTURAL FEATURES")
         for name, s in stats.boolean.items():
             pct = s.true_fraction * 100
-            bar = "#" * int(round(pct / 5))
+            bar = "#" * round(pct / 5)
             print(f"  {name:<30} {s.n_true:>2}/{s.n:<2} {pct:5.1f}%  {bar}")
 
     if stats.carve_outs.n:

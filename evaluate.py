@@ -33,7 +33,7 @@ from legal_ai.evaluation import (  # noqa: E402
 )
 from legal_ai.extract import SCHEMA_VERSION, extract_document  # noqa: E402
 from legal_ai.profile import build_profile  # noqa: E402
-from legal_ai.scoring import Severity, score_document  # noqa: E402
+from legal_ai.scoring import score_document  # noqa: E402
 
 
 def _find_document(name: str) -> Path | None:

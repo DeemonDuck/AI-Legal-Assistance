@@ -49,6 +49,9 @@ run_*.txt
 corpus_*.txt
 eval_*.txt
 
+# Tool caches
+.ruff_cache/
+
 # OS / editor
 .DS_Store
 Thumbs.db

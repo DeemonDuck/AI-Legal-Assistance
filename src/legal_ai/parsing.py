@@ -173,7 +173,10 @@ def _split_heading_from_body(heading_line: str) -> tuple[str, str]:
     """A heading line often carries the clause's first sentence, e.g.
     '5. Term. This Agreement shall remain in effect for two years.'
     Keep the label as the heading and push the rest into the body."""
-    match = re.match(r"^((?:ARTICLE|Article|SECTION|Section)?\s*[\dIVXLC\.\(\)a-z]+\.?)\s+(.*)$", heading_line.strip())
+    match = re.match(
+        r"^((?:ARTICLE|Article|SECTION|Section)?\s*[\dIVXLC\.\(\)a-z]+\.?)\s+(.*)$",
+        heading_line.strip(),
+    )
     if not match:
         return heading_line.strip(), ""
 
@@ -266,7 +269,10 @@ def _merge_stubs(clauses: list[RawClause]) -> list[RawClause]:
     for clause in clauses:
         if pending is not None:
             heading = pending.heading or clause.heading
-            body = "\n".join(p for p in (pending.text, clause.full_text if pending.heading else clause.text) if p).strip()
+            # When the stub supplied the heading, the follower's own heading is
+            # still content and must come through in its body.
+            tail = clause.full_text if pending.heading else clause.text
+            body = "\n".join(p for p in (pending.text, tail) if p).strip()
             clause = RawClause(index=pending.index, heading=heading, text=body)
             pending = None
 

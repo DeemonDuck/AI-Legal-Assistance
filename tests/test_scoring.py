@@ -78,11 +78,11 @@ print("\n--- Schema / scorer consistency ---")
 # the scorer silently skipped it. No error, no finding -- the attribute simply
 # was never checked. Pinning the invariant means the next added attribute cannot
 # repeat it.
-from legal_ai.scoring import BOOLEAN_RULES, NUMERIC_RULES  # noqa: E402
 from legal_ai.schemas import (  # noqa: E402
     BOOLEAN_SCORED_ATTRIBUTES,
     NUMERIC_SCORED_ATTRIBUTES,
 )
+from legal_ai.scoring import BOOLEAN_RULES, NUMERIC_RULES  # noqa: E402
 
 check("every numeric rule has corpus stats computed for it",
       sorted(set(NUMERIC_RULES) - set(NUMERIC_SCORED_ATTRIBUTES)), [])

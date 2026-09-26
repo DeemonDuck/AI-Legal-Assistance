@@ -115,7 +115,10 @@ def compare_document(path: Path, old_version: str, new_version: str) -> bool:
         print(f"  note: {len(old)} clauses in v{old_version}, {len(new)} in v{new_version}")
 
     total = 0
-    for i, (o, n) in enumerate(zip(old, new), start=1):
+    # strict=False: the two runs are allowed to differ in clause count -- that
+    # is precisely what the note above reports -- so comparing the overlap and
+    # stopping there is the intended behaviour, not an oversight.
+    for i, (o, n) in enumerate(zip(old, new, strict=False), start=1):
         changes = diff_clause(o, n)
         if not changes:
             continue
@@ -138,7 +141,10 @@ def compare_document(path: Path, old_version: str, new_version: str) -> bool:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Diff extraction output across schema versions.")
     parser.add_argument("--old", default="2", help="Schema version to compare FROM (default 2).")
-    parser.add_argument("--new", default=None, help="Schema version to compare TO (default: current).")
+    parser.add_argument(
+        "--new", default=None,
+        help="Schema version to compare TO (default: current).",
+    )
     parser.add_argument("--doc", default=None, help="One document stem, e.g. aggressive_nda_01.")
     args = parser.parse_args()
 

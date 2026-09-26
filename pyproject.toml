@@ -1,0 +1,46 @@
+# Tool configuration only -- deliberately no [project] table and no build
+# backend. The entry points put src/ on sys.path themselves so that a fresh
+# clone runs with nothing but `pip install -r requirements.txt`, and declaring
+# a package here would invite `pip install -e .` to become a required step that
+# the README does not mention and Streamlit Cloud would not perform.
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests", "."]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes -- unused imports and names
+    "I",    # import ordering
+    "UP",   # pyupgrade
+    "B",    # bugbear -- mutable defaults, shadowed loop vars, bare except
+    "C4",   # comprehension simplifications
+    "RUF",  # ruff's own checks
+]
+
+ignore = [
+    # `class X(str, Enum)` rather than StrEnum, deliberately. These enums are
+    # Pydantic fields in the strict JSON schemas sent to Groq and Anthropic, and
+    # the two base classes do not generate identical schemas or serialise
+    # identically. Swapping them to satisfy a style rule would change what goes
+    # over the wire to the model, which is not a refactor this rule can see.
+    "UP042",
+
+    # The `# noqa: E402` comments on the entry-point imports look redundant to
+    # ruff, which has a built-in allowance for imports that follow a sys.path
+    # edit. flake8 has no such allowance and would flag every one of them, so
+    # the directives are kept and this rule is off rather than stripping 37
+    # comments that another linter still needs.
+    "RUF100",
+]
+
+# E402 is left ON. Every entry point extends sys.path before importing
+# legal_ai and carries an explicit `# noqa: E402` at the import, which is the
+# documentation that the ordering is deliberate. Turning the rule off globally
+# would strip that signal out of the code.
+
+[tool.ruff.lint.isort]
+known-first-party = ["legal_ai"]

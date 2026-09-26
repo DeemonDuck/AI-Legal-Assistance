@@ -93,7 +93,8 @@ no restating the clause in legal language.
 
 Return one entry per clause given, in the same order.
 
-Return a JSON OBJECT with a single key "clauses" whose value is the array. Do not return a bare array as the top-level value."""
+Return a JSON OBJECT with a single key "clauses" whose value is the array. Do \
+not return a bare array as the top-level value."""
 
 
 @dataclass
@@ -110,7 +111,11 @@ class ExtractionResult:
     from_cache: bool
 
     def pairs(self) -> list[tuple[RawClause, ExtractedClause]]:
-        return list(zip(self.raw_clauses, self.extracted))
+        # strict=True on purpose. extract_clauses() truncates both sides to the
+        # same length before constructing this, so a mismatch here means that
+        # guarantee broke -- and a silent zip would then pair clause text with
+        # a different clause's attributes and report it as fact.
+        return list(zip(self.raw_clauses, self.extracted, strict=True))
 
 
 def _cache_path(clauses: list[RawClause]) -> Path:

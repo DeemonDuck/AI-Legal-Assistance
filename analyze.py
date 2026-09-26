@@ -21,9 +21,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
 
 from legal_ai.corpus import load_stats  # noqa: E402
 from legal_ai.extract import extract_clauses  # noqa: E402
+from legal_ai.negotiate import draft_email, negotiate  # noqa: E402
 from legal_ai.parsing import parse_document  # noqa: E402
 from legal_ai.profile import build_profile  # noqa: E402
-from legal_ai.negotiate import draft_email, negotiate  # noqa: E402
 from legal_ai.scoring import Severity, score_document  # noqa: E402
 
 SEVERITY_MARK = {

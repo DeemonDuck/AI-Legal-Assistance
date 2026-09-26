@@ -233,7 +233,7 @@ def _score_numeric(attribute: str, value: int, stats, clause_index: int | None) 
     )
 
     if severity is Severity.FAVOURABLE:
-        why = f"This is more favourable to you than most of the reference corpus."
+        why = "This is more favourable to you than most of the reference corpus."
     elif rule.higher_is_worse:
         why = (
             f"A longer {rule.label.lower()} extends how long you carry this "
@@ -257,7 +257,9 @@ def _score_numeric(attribute: str, value: int, stats, clause_index: int | None) 
     )
 
 
-def _score_boolean(attribute: str, value: bool, stats, clause_index: int | None) -> Deviation | None:
+def _score_boolean(
+    attribute: str, value: bool, stats, clause_index: int | None
+) -> Deviation | None:
     rule = BOOLEAN_RULES[attribute]
     if stats.n == 0:
         return None
@@ -369,7 +371,10 @@ def _score_carve_outs(profile: DocumentProfile, stats: CorpusStats) -> list[Devi
                 severity=Severity.HIGH,
                 document_value=[],
                 finding="none of the standard exclusions appear",
-                market=f"all {len(expected)} appear in at least {int(CARVE_OUT_EXPECTED_THRESHOLD * 100)}% of reference NDAs",
+                market=(
+                    f"all {len(expected)} appear in at least "
+                    f"{int(CARVE_OUT_EXPECTED_THRESHOLD * 100)}% of reference NDAs"
+                ),
                 why_it_matters=(
                     "Without these exclusions the agreement can cover information you "
                     "already had, information that is public, and information you work "
@@ -387,7 +392,10 @@ def _score_carve_outs(profile: DocumentProfile, stats: CorpusStats) -> list[Devi
             severity=Severity.MEDIUM,
             document_value=False,
             finding=f"no exclusion for {CARVE_OUT_LABELS.get(term, term)}",
-            market=f"present in {stats.carve_outs.counts[term]} of {stats.carve_outs.n} reference NDAs",
+            market=(
+                f"present in {stats.carve_outs.counts[term]} of "
+                f"{stats.carve_outs.n} reference NDAs"
+            ),
             why_it_matters=(
                 f"Without this exclusion, {CARVE_OUT_LABELS.get(term, term)} is treated "
                 "as confidential even though it should not be."

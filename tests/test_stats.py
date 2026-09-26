@@ -38,7 +38,7 @@ def check(label: str, actual, expected) -> None:
 
 def clause(**attribute_overrides) -> ExtractedClause:
     """An otherwise-null clause with only the named attributes set."""
-    blank = {name: None for name in ClauseAttributes.model_fields}
+    blank = dict.fromkeys(ClauseAttributes.model_fields)
     blank["carve_outs_present"] = []
     blank.update(attribute_overrides)
     return ExtractedClause(
@@ -105,7 +105,7 @@ check("min term", stats.numeric["term_months"].minimum, 18.0)
 check("max term", stats.numeric["term_months"].maximum, 60.0)
 
 # Perpetual documents must be counted but kept out of the percentile maths.
-mixed = profiles + [build_profile("perp", [clause(term_months=PERPETUAL)])]
+mixed = [*profiles, build_profile("perp", [clause(term_months=PERPETUAL)])]
 stats_mixed = build_stats(mixed, provenance="test")
 check("perpetual counted", stats_mixed.numeric["term_months"].n_perpetual, 1)
 check("perpetual excluded from median",

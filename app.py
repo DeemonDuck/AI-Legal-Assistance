@@ -209,7 +209,8 @@ for deviation in report.deviations:
 
         # The clause text is collapsed rather than shown inline: users want the
         # finding first, and the source only when they doubt it.
-        if deviation.clause_index is not None and deviation.clause_index < len(extraction.raw_clauses):
+        if (deviation.clause_index is not None
+                and deviation.clause_index < len(extraction.raw_clauses)):
             with st.expander("Show the clause this came from"):
                 st.text(extraction.raw_clauses[deviation.clause_index].text)
 

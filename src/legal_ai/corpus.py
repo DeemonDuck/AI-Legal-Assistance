@@ -252,7 +252,7 @@ def build_stats(profiles: list[DocumentProfile], *, provenance: str) -> CorpusSt
 
     # Carve-outs are counted per term: how many documents include each one.
     # A document missing a carve-out that 8/8 others have is a strong signal.
-    carve_counts = {term: 0 for term in STANDARD_CARVE_OUTS}
+    carve_counts = dict.fromkeys(STANDARD_CARVE_OUTS, 0)
     documents_with_carve_data = 0
     for profile in profiles:
         present = profile.get("carve_outs_present")
