@@ -15,6 +15,7 @@ who lands mid-report should not have to scroll to learn the tool is not a lawyer
 from __future__ import annotations
 
 import hashlib
+import html
 import os
 import sys
 import tempfile
@@ -51,7 +52,12 @@ from legal_ai.extract import extract_document  # noqa: E402
 from legal_ai.negotiate import draft_email, negotiate  # noqa: E402
 from legal_ai.parsing import SUPPORTED_SUFFIXES  # noqa: E402
 from legal_ai.profile import build_profile  # noqa: E402
-from legal_ai.scoring import Severity, score_document  # noqa: E402
+from legal_ai.scoring import (  # noqa: E402
+    BOOLEAN_RULES,
+    NUMERIC_RULES,
+    Severity,
+    score_document,
+)
 
 st.set_page_config(page_title="NDA Reviewer", page_icon="⚖️", layout="wide")
 
@@ -142,12 +148,42 @@ def _forget_previous_document(state, uploaded=None) -> None:
         state.pop(name, None)
 
 
-def _severity_badge(severity: Severity) -> str:
+def _severity_badge(severity: Severity, describes: str = "") -> str:
+    """The coloured severity chip, with an accessible name that stands alone.
+
+    The chip sits in its own column beside the finding's title, so a screen
+    reader reaches a bare "HIGH RISK" with nothing tying it to what is high
+    risk. aria-label restates the pairing, which costs sighted users nothing
+    -- they can see the two side by side -- and gives everyone else the
+    sentence they would otherwise have to assemble from two announcements.
+    """
     colour, label = SEVERITY_STYLE[severity]
+    described = f"{label}: {describes}" if describes else label
     return (
-        f"<span style='background:{colour};color:white;padding:2px 8px;"
+        f"<span role='img' aria-label='{html.escape(described, quote=True)}' "
+        f"style='background:{colour};color:white;padding:2px 8px;"
         f"border-radius:3px;font-size:0.75rem;font-weight:600'>{label}</span>"
     )
+
+
+def _readable(attribute: str) -> str:
+    """A human label for an internal attribute name.
+
+    The pipeline identifies terms as `non_solicit_months`, and that string was
+    reaching the screen in three places. A screen reader reads it aloud as
+    "non underscore solicit underscore months", and it is poor plain English
+    for everyone else too -- in a tool whose whole promise is plain English.
+
+    The labels already exist on the scoring rules, so this is a lookup rather
+    than new wording. Falls back to de-underscoring anything unmapped, so a
+    new attribute degrades to "non compete months" rather than vanishing.
+    """
+    rule = NUMERIC_RULES.get(attribute) or BOOLEAN_RULES.get(attribute)
+    if rule is not None:
+        return rule.label
+    if attribute.startswith("carve_out:"):
+        return f"Missing exclusion: {attribute.split(':', 1)[1].replace('_', ' ')}"
+    return attribute.replace("_", " ")
 
 
 # --- Sidebar ----------------------------------------------------------------
@@ -248,7 +284,8 @@ for deviation in report.deviations:
     with st.container(border=True):
         left, right = st.columns([3, 1])
         left.markdown(f"**{deviation.label}**" + (f" — {heading}" if heading else ""))
-        right.markdown(_severity_badge(deviation.severity), unsafe_allow_html=True)
+        right.markdown(_severity_badge(deviation.severity, deviation.label),
+                       unsafe_allow_html=True)
 
         st.markdown(f"**This document:** {deviation.finding}")
         st.markdown(f"**Reference NDAs:** {deviation.market}")
@@ -264,7 +301,7 @@ for deviation in report.deviations:
 if report.skipped:
     st.caption(
         "Not checked, because the reference corpus has no baseline for them: "
-        + ", ".join(sorted(set(report.skipped)))
+        + ", ".join(sorted({_readable(a) for a in report.skipped}))
     )
 
 # --- Negotiation ------------------------------------------------------------
@@ -296,7 +333,9 @@ if negotiations:
     st.info(negotiations.overall_assessment)
 
     for item in negotiations.negotiations:
-        with st.expander(f"{item.risk_level.value.upper()} — {item.attribute}"):
+        with st.expander(
+            f"{item.risk_level.value.upper()} — {_readable(item.attribute)}"
+        ):
             st.markdown(f"**What it means:** {item.plain_explanation}")
             st.markdown(f"**Their case:** {item.counterparty_justification}")
             st.markdown(f"**Your case:** {item.your_position}")
@@ -315,7 +354,7 @@ if negotiations:
             )
             for attribute, statistical, practical in gaps:
                 st.markdown(
-                    f"- **{attribute}** — unusual: `{statistical}`, "
+                    f"- **{_readable(attribute)}** — unusual: `{statistical}`, "
                     f"practical risk: `{practical}`"
                 )
 

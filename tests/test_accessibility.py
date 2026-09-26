@@ -30,10 +30,15 @@ Run:  py tests/test_accessibility.py
 from __future__ import annotations
 
 import ast
+import html
+import sys
 import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+
+from legal_ai.scoring import BOOLEAN_RULES, NUMERIC_RULES, Severity  # noqa: E402
 
 failures: list[str] = []
 
@@ -80,31 +85,52 @@ def meets_aa(foreground: str, background: str) -> bool:
 # --- Read the palette that actually ships ------------------------------------
 
 
-def severity_style() -> dict[str, tuple[str, str]]:
-    """Pull SEVERITY_STYLE out of app.py without importing it.
+def load_from_app(*names: str) -> dict:
+    """Execute just the named top-level definitions from app.py.
 
-    app.py runs Streamlit at module scope, so importing it would build the whole
-    page -- and would make this test require a Streamlit install to check three
-    hex strings. Reading the literal by AST gets the shipped values with neither
-    cost.
+    app.py runs Streamlit at module scope, so importing it would build the
+    whole page -- and would make this suite need a Streamlit install to check
+    some hex strings. Lifting the definitions out by AST tests the code that
+    actually ships, rather than a copy that can drift.
     """
     tree = ast.parse((ROOT / "app.py").read_text(encoding="utf-8"))
 
-    for node in tree.body:
-        if not isinstance(node, ast.Assign):
-            continue
-        if not any(
-            isinstance(t, ast.Name) and t.id == "SEVERITY_STYLE" for t in node.targets
-        ):
-            continue
+    wanted = [
+        node for node in tree.body
+        if (isinstance(node, ast.FunctionDef) and node.name in names)
+        or (isinstance(node, ast.Assign)
+            and any(isinstance(t, ast.Name) and t.id in names for t in node.targets))
+    ]
 
-        styles = {}
-        # strict=True: an ast.Dict always holds as many values as keys, so an
-        # inequality here would mean the parse is wrong, not the palette.
-        for key, value in zip(node.value.keys, node.value.values, strict=True):
-            colour, label = (element.value for element in value.elts)
-            styles[key.attr] = (colour, label)
-        return styles
+    found = {
+        n.name if isinstance(n, ast.FunctionDef) else n.targets[0].id for n in wanted
+    }
+    if set(names) - found:
+        raise AssertionError(
+            f"app.py no longer defines {sorted(set(names) - found)} at module "
+            "level -- renamed, or moved inside another scope?"
+        )
+
+    namespace: dict = {
+        "html": html,
+        "Severity": Severity,
+        "NUMERIC_RULES": NUMERIC_RULES,
+        "BOOLEAN_RULES": BOOLEAN_RULES,
+    }
+    exec(compile(ast.Module(body=wanted, type_ignores=[]), "app.py", "exec"), namespace)
+    return namespace
+
+
+def severity_style() -> dict[str, tuple[str, str]]:
+    """SEVERITY_STYLE as {severity name: (colour, label)}.
+
+    Re-keyed by name because the loaded dict is keyed by the real Severity
+    enum, and the checks below read better against plain strings.
+    """
+    return {
+        severity.name: value
+        for severity, value in load_from_app("SEVERITY_STYLE")["SEVERITY_STYLE"].items()
+    }
 
     raise AssertionError("SEVERITY_STYLE not found in app.py -- was it renamed?")
 
@@ -165,6 +191,52 @@ check(f"body text on cards and the sidebar clears AA ({card_ratio:.2f}:1)",
 primary_ratio = contrast_ratio(theme["primaryColor"], background)
 check(f"accent colour on the page background clears AA ({primary_ratio:.2f}:1)",
       meets_aa(theme["primaryColor"], background), True)
+
+
+print("\n--- Nothing internal reaches the screen ---")
+
+# The pipeline names terms `non_solicit_months`. That string was reaching the
+# UI in three places -- negotiation expander titles, the rarity-vs-risk list,
+# and the "not checked" caption. A screen reader reads it out as "non
+# underscore solicit underscore months", and it is poor plain English for
+# everyone else, in a tool whose whole promise is plain English.
+app = load_from_app("_readable", "_severity_badge", "SEVERITY_STYLE")
+readable, badge = app["_readable"], app["_severity_badge"]
+
+for attribute in list(NUMERIC_RULES) + list(BOOLEAN_RULES):
+    label = readable(attribute)
+    check(f"{attribute} is shown as words", "_" not in label, True)
+
+check("the label is the one the scorer already uses",
+      readable("non_solicit_months"), "Non-solicitation period")
+check("carve-out identifiers are spelled out",
+      readable("carve_out:independently_developed"),
+      "Missing exclusion: independently developed")
+# An attribute added later must degrade to readable text, not leak raw.
+check("an unmapped attribute still loses its underscores",
+      readable("some_future_attribute"), "some future attribute")
+
+
+print("\n--- The severity chip names what it describes ---")
+
+# The chip renders in its own column beside the finding's title, so without
+# this a screen reader reaches a bare "HIGH RISK" with nothing saying what is.
+# A roleless <span> does not reliably expose aria-label, hence role='img'.
+markup = badge(Severity.HIGH, "Confidentiality term")
+check("the chip carries an accessible name",
+      "aria-label='HIGH RISK: Confidentiality term'" in markup, True)
+check("the chip has a role, or aria-label may be ignored",
+      "role='img'" in markup, True)
+check("the visible text is still there for sighted users",
+      ">HIGH RISK</span>" in markup, True)
+check("it degrades to the bare level when nothing is described",
+      "aria-label='MODERATE'" in badge(Severity.MEDIUM), True)
+
+# The described text comes from the document, so it can contain quotes and
+# ampersands -- unescaped, either would break out of the attribute.
+check("the accessible name is HTML-escaped",
+      "aria-label='MODERATE: O&#x27;Brien &amp; Co'" in badge(Severity.MEDIUM, "O'Brien & Co"),
+      True)
 
 
 print("\n" + "=" * 60)
