@@ -43,9 +43,6 @@ from legal_ai.scoring import DeviationReport, Severity
 
 EXPECTED_FILE = config.GOLDEN_DIR / "expected.json"
 
-_SEVERITY_ORDER = {"low": 1, "medium": 2, "high": 3}
-
-
 @dataclass
 class Expectation:
     attribute: str
@@ -183,9 +180,11 @@ def evaluate_report(
 
         # Detecting a perpetual term but calling it LOW is not a pass -- the
         # severity is what drives whether a user acts on it.
-        actual_rank = _SEVERITY_ORDER.get(found.severity.value, 0)
-        required_rank = _SEVERITY_ORDER.get(expected.min_severity, 1)
-        if actual_rank < required_rank:
+        # Ranked via Severity itself rather than a local table. This used to
+        # keep its own {"low": 1, "medium": 2, "high": 3}, an exact copy of
+        # Severity.rank minus FAVOURABLE -- two orderings of one concept, and
+        # the eval silently changes meaning if they ever disagree.
+        if found.severity.rank < Severity(expected.min_severity).rank:
             result.under_severity.append((expected, found.severity))
         else:
             result.found.append(expected.attribute)

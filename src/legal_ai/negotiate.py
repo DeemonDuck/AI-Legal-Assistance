@@ -55,6 +55,18 @@ class RiskLevel(str, Enum):
     MEDIUM = "medium"
     LOW = "low"
 
+    @property
+    def rank(self) -> int:
+        """Higher is more urgent, matching scoring.Severity.rank.
+
+        Kept as a property rather than an inline dict at the one call site,
+        so that this ordering and Severity's are recognisably the same idea
+        written the same way -- they are separate enums on purpose (statistical
+        rarity is not practical risk), but nothing is served by them being
+        ordered by two differently-shaped literals.
+        """
+        return {"high": 3, "medium": 2, "low": 1}[self.value]
+
 
 class ClauseNegotiation(BaseModel):
     """One flagged term, argued from both sides and resolved into an ask."""
@@ -308,7 +320,7 @@ def draft_email(result: NegotiationResult, *, use_cache: bool = True) -> str:
 
     priority = sorted(
         result.negotiations,
-        key=lambda n: {"high": 0, "medium": 1, "low": 2}[n.risk_level.value],
+        key=lambda n: -n.risk_level.rank,
     )[:4]
 
     payload = "\n\n".join(

@@ -49,6 +49,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
 from legal_ai.corpus import load_stats  # noqa: E402
 from legal_ai.extract import extract_document  # noqa: E402
 from legal_ai.negotiate import draft_email, negotiate  # noqa: E402
+from legal_ai.parsing import SUPPORTED_SUFFIXES  # noqa: E402
 from legal_ai.profile import build_profile  # noqa: E402
 from legal_ai.scoring import Severity, score_document  # noqa: E402
 
@@ -185,7 +186,7 @@ if stats is None:
     st.stop()
 
 uploaded = st.file_uploader(
-    "Upload an NDA", type=["pdf", "docx", "txt", "md"],
+    "Upload an NDA", type=[s.lstrip(".") for s in SUPPORTED_SUFFIXES],
     help="Text-layer PDFs only. Scanned documents are not supported.",
 )
 

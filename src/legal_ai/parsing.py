@@ -24,7 +24,15 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-SUPPORTED_SUFFIXES = {".pdf", ".docx", ".txt", ".md"}
+# The one list of file types this project can read. Everything that needs to
+# know -- the corpus collector, the eval's document finder, the uploader widget
+# -- imports this rather than restating it, because four copies meant adding a
+# format required finding all four and missing one failed inconsistently.
+#
+# A tuple, not a set, because evaluate.py resolves a bare document name by
+# trying suffixes in order and that order should be stable rather than
+# whatever a set happens to iterate.
+SUPPORTED_SUFFIXES: tuple[str, ...] = (".txt", ".md", ".docx", ".pdf")
 
 # A PDF page that yields almost no text is the classic scanned-document signal.
 _MIN_CHARS_PER_PAGE_FOR_TEXT_LAYER = 50

@@ -25,11 +25,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import Path
 
 from legal_ai.schemas import (
-    BOOLEAN_SCORED_ATTRIBUTES,
-    NUMERIC_SCORED_ATTRIBUTES,
     ExtractedClause,
 )
 
@@ -94,8 +91,6 @@ class DocumentProfile:
     def get(self, attribute: str):
         return self.values.get(attribute)
 
-    def is_perpetual(self, attribute: str) -> bool:
-        return self.values.get(attribute) == PERPETUAL
 
 
 def _aggregate(attribute: str, rule: Rule, candidates: list[tuple[int, object]]):
@@ -171,12 +166,3 @@ def build_profile(name: str, clauses: list[ExtractedClause]) -> DocumentProfile:
 
     return profile
 
-
-def profile_from_path(path: Path, clauses: list[ExtractedClause]) -> DocumentProfile:
-    return build_profile(Path(path).stem, clauses)
-
-
-def scored_attributes() -> list[str]:
-    """Attributes the deviation scorer will compare. Sourced from schemas.py so
-    the two cannot drift apart."""
-    return NUMERIC_SCORED_ATTRIBUTES + BOOLEAN_SCORED_ATTRIBUTES

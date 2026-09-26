@@ -31,6 +31,7 @@ from pathlib import Path
 
 from legal_ai import config
 from legal_ai.extract import SCHEMA_VERSION, extract_document
+from legal_ai.parsing import SUPPORTED_SUFFIXES
 from legal_ai.profile import PERPETUAL, DocumentProfile, build_profile
 from legal_ai.schemas import (
     BOOLEAN_SCORED_ATTRIBUTES,
@@ -185,7 +186,6 @@ class CorpusStats:
 # is not hypothetical: data/corpus/README.md was extracted as an NDA on the first
 # live run, producing eleven "clauses" of prose about corpus provenance and
 # corrupting the baseline before the request failed outright.
-DOCUMENT_SUFFIXES = {".txt", ".md", ".pdf", ".docx"}
 NON_DOCUMENT_STEMS = {"readme", "expected", "notes"}
 
 
@@ -194,7 +194,7 @@ def collect_documents(directory: Path) -> list[Path]:
     return sorted(
         p for p in directory.iterdir()
         if p.is_file()
-        and p.suffix.lower() in DOCUMENT_SUFFIXES
+        and p.suffix.lower() in SUPPORTED_SUFFIXES
         and p.stem.lower() not in NON_DOCUMENT_STEMS
     )
 
