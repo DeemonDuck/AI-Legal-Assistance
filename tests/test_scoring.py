@@ -228,6 +228,54 @@ check("clean headline says no material deviations",
       "No material deviations" in r.headline(), True)
 
 
+print("\n--- Inverted-direction severity is graded, not a cliff ---")
+
+# notice_period_days is the one attribute where LOW is the adverse direction,
+# and its severity used to collapse. The MEDIUM branch tested
+# `value < minimum`, which is the SAME condition as "worse than all" -- and
+# that is checked first, so MEDIUM was unreachable. A deadline shorter than
+# almost every reference NDA scored LOW, indistinguishable from a mildly
+# short one. Severity is what decides whether a user acts, so a tier that
+# cannot fire is a tier of findings nobody sees.
+notice = STATS.numeric["notice_period_days"]
+check("corpus exposes a p10 for the lower tail",
+      notice.percentile(0.10) is not None, True)
+
+
+def notice_severity(days: int):
+    return find(score_one(notice_period_days=days,
+                          carve_outs_present=ALL_CARVE_OUTS), "notice_period_days")
+
+
+shortest = int(notice.minimum)
+
+# A value that is adverse (strictly below p25) but not in the worst decile,
+# derived from the corpus rather than hardcoded so this keeps testing the
+# right thing if MARKET changes. Asserted, because if the band between p10
+# and p25 is empty the LOW case below would be vacuous.
+mild = int(notice.p25) - 1
+check("the mild value sits between p10 and p25",
+      notice.percentile(0.10) <= mild < notice.p25, True)
+
+check("shorter than every reference NDA is HIGH",
+      notice_severity(shortest - 5).severity, Severity.HIGH)
+check("inside the worst decile is MEDIUM",
+      notice_severity(shortest).severity, Severity.MEDIUM)
+check("below p25 but outside the worst decile is LOW",
+      notice_severity(mild).severity, Severity.LOW)
+
+# All three adverse tiers must actually be producible, or the scale is
+# decorative -- which is exactly what the bug made it.
+check("all three adverse tiers are reachable when lower is worse",
+      {notice_severity(d).severity for d in (shortest - 5, shortest, mild)},
+      {Severity.HIGH, Severity.MEDIUM, Severity.LOW})
+
+# And the direction must not have flipped while being regraded: a longer
+# deadline than the market is easier to comply with, so it is leverage.
+check("a longer deadline than the market is FAVOURABLE",
+      notice_severity(int(notice.maximum) + 30).severity, Severity.FAVOURABLE)
+
+
 print("\n" + "=" * 60)
 if failures:
     print(f"{len(failures)} FAILED: {', '.join(failures)}")

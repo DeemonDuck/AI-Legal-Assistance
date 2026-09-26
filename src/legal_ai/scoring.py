@@ -207,12 +207,19 @@ def _score_numeric(attribute: str, value: int, stats, clause_index: int | None) 
     if rule.higher_is_worse:
         adverse = value > stats.p75
         favourable = value < stats.p25
-        beyond_p90 = value > stats.p90
+        worst_decile = value > stats.p90
         rank_phrase = f"longer than {exceeded} of the {n} reference NDAs"
     else:
         adverse = value < stats.p25
         favourable = value > stats.p75
-        beyond_p90 = value < stats.minimum
+        # p10 is the mirror of p90 on the other tail. This used to read
+        # `value < stats.minimum`, which is the SAME condition as
+        # worse_than_all below -- and since that is tested first, the MEDIUM
+        # branch was unreachable for every lower-is-worse attribute. Severity
+        # collapsed to a cliff: a deadline shorter than 7 of the 8 reference
+        # NDAs scored LOW, identical to one shorter than 2 of them.
+        p10 = stats.percentile(0.10)
+        worst_decile = p10 is not None and value < p10
         rank_phrase = f"shorter than {n - exceeded} of the {n} reference NDAs"
 
     if not adverse and not favourable:
@@ -222,7 +229,7 @@ def _score_numeric(attribute: str, value: int, stats, clause_index: int | None) 
         severity = Severity.FAVOURABLE
     elif worse_than_all:
         severity = Severity.HIGH
-    elif beyond_p90:
+    elif worst_decile:
         severity = Severity.MEDIUM
     else:
         severity = Severity.LOW

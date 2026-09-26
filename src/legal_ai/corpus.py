@@ -75,6 +75,17 @@ class NumericStats:
         """How many finite corpus values this value exceeds."""
         return sum(1 for v in self.values if value > v)
 
+    def percentile(self, fraction: float) -> float | None:
+        """A percentile over the finite values, computed on demand.
+
+        Computed here rather than stored as another field so that
+        corpus_stats.json files written before this existed keep loading --
+        `values` holds the raw finite values, so nothing needs rebuilding.
+        The scorer needs p10 for attributes where LOW is the adverse
+        direction, which is the mirror of the stored p90.
+        """
+        return _percentile(self.values, fraction) if self.values else None
+
 
 @dataclass
 class BooleanStats:
