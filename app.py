@@ -53,9 +53,19 @@ from legal_ai.scoring import Severity, score_document  # noqa: E402
 
 st.set_page_config(page_title="NDA Reviewer", page_icon="⚖️", layout="wide")
 
+# Badge background paired with WHITE text, so each colour must clear WCAG 2.1 AA
+# (4.5:1) against #ffffff -- the badge text is 12px, which is below the 18.66px
+# threshold for the relaxed 3:1 "large text" rule, so the full ratio applies.
+#
+# Severity is never carried by colour alone: every badge states its level in
+# words, because ~4% of men cannot reliably separate the red one from the amber
+# one, and a risk indicator that only some readers can read is not an indicator.
+# tests/test_accessibility.py recomputes these ratios so the claim stays true
+# if someone retunes the palette.
 SEVERITY_STYLE = {
     Severity.HIGH: ("#b3261e", "HIGH RISK"),
-    Severity.MEDIUM: ("#b26b00", "MODERATE"),
+    # Was #b26b00, which measured 4.20:1 and failed AA. Darkened to 5.43:1.
+    Severity.MEDIUM: ("#9a5b00", "MODERATE"),
     Severity.LOW: ("#5f6368", "MINOR"),
     Severity.FAVOURABLE: ("#1e7b34", "IN YOUR FAVOUR"),
 }
@@ -161,7 +171,10 @@ report = score_document(profile, stats)
 
 # --- Summary ----------------------------------------------------------------
 
-st.subheader(report.headline())
+# st.header, not st.subheader: these are the two top-level sections under the
+# page title, and subheader renders <h3>, which would skip a level and leave a
+# screen reader's heading outline reading h1 -> h3 with nothing in between.
+st.header(report.headline())
 
 high = report.count(Severity.HIGH)
 medium = report.count(Severity.MEDIUM)
@@ -213,7 +226,7 @@ st.divider()
 if not report.risks:
     st.stop()
 
-st.subheader("Negotiating positions")
+st.header("Negotiating positions")
 st.caption(
     "Argues both sides of each flagged term and suggests replacement wording. "
     "This makes one additional API call."
