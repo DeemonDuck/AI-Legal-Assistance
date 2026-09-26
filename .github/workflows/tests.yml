@@ -1,0 +1,113 @@
+# Offline checks only. Every job here runs without an API key, because the
+# repository has none and a workflow that needs a secret is a workflow that
+# silently stops running on forks.
+#
+# The paid measurement -- `py evaluate.py`, which scores the golden documents
+# end to end -- is deliberately NOT here. It needs live extraction for any
+# document whose cache has expired, and a CI job that spends someone's token
+# allowance on every push is a bad trade for a signal the test suites already
+# give. Run it locally before a release and quote the number in the README.
+
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # A second push supersedes the first; no point finishing a run nobody reads.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.11 is the floor the README tells deployers to set, and it is the
+        # first version with tomllib, which tests/test_accessibility.py needs.
+        # 3.13 is what the project is developed on. Testing both is what stops
+        # a 3.13-only idiom reaching someone following the deploy instructions.
+        python-version: ["3.11", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        # The full requirements file, not a trimmed test subset: this is also
+        # the check that requirements.txt still resolves and installs, which is
+        # what Streamlit Cloud does on every deploy.
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Lint
+        run: |
+          python -m pip install ruff
+          ruff check .
+
+      - name: Offline test suites
+        run: python tests/run_all.py
+
+      - name: Corpus baseline is present and current
+        # The deployed app cannot rebuild this -- it costs 21 API calls -- so it
+        # ships as reference data. If it ever drifts from the extraction schema
+        # the app still starts and still produces confident numbers, comparing
+        # documents read under one set of field descriptions against a baseline
+        # built from another. That is invisible at runtime, so it is checked here.
+        run: |
+          python - <<'PY'
+          import sys
+          sys.path.insert(0, "src")
+          from legal_ai.corpus import load_stats
+          from legal_ai.extract import SCHEMA_VERSION
+
+          stats = load_stats()
+          mismatch = stats.schema_mismatch(SCHEMA_VERSION)
+          if mismatch:
+              sys.exit(f"Corpus baseline is stale:\n{mismatch}")
+          print(f"Baseline OK: {stats.n_documents} NDAs, schema v{stats.schema_version}")
+          PY
+
+      - name: Demo extractions are cached, so the deployed app costs nothing
+        # The three sample documents are the entire public demo. If their cached
+        # extractions stop matching -- a schema bump, a model change, an edited
+        # sample -- the app silently falls back to live API calls at roughly one
+        # per minute, and the first visitor spends the day's token allowance
+        # waiting three minutes for a result.
+        run: |
+          python - <<'PY'
+          import sys
+          from pathlib import Path
+          sys.path.insert(0, "src")
+          from legal_ai.extract import _cache_path
+          from legal_ai.parsing import parse_document
+
+          missing = []
+          for name in ("aggressive_nda_01", "clean_nda_02", "mixed_nda_03"):
+              path = _cache_path(parse_document(Path("data/golden") / f"{name}.txt"))
+              status = "hit" if path.exists() else "MISS"
+              print(f"  {name:20} {path.name}  {status}")
+              if not path.exists():
+                  missing.append(name)
+
+          if missing:
+              sys.exit(
+                  "No cached extraction for: " + ", ".join(missing) + "\n"
+                  "Re-run them locally and commit the new .cache/extract_*.json "
+                  "files (and update the allowlist in .gitignore)."
+              )
+          PY
