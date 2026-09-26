@@ -340,7 +340,12 @@ if negotiations:
             st.markdown(f"**Their case:** {item.counterparty_justification}")
             st.markdown(f"**Your case:** {item.your_position}")
             st.markdown("**Ask for this wording:**")
-            st.code(item.suggested_redline, language=None)
+            # wrap_lines: a redline is one unbroken paragraph of contract
+            # wording, and st.code does not wrap by default -- it scrolls
+            # sideways, which fails WCAG 1.4.10 (content must reflow to 320px
+            # without horizontal scrolling) and is miserable on a phone.
+            # Available since Streamlit 1.38; requirements.txt floors at 1.40.
+            st.code(item.suggested_redline, language=None, wrap_lines=True)
             st.markdown(f"**Fall back to:** {item.fallback_position}")
             st.success(f"Say this: \"{item.talking_point}\"")
 

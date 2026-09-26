@@ -553,6 +553,7 @@ the claim below stays true, or CI goes red.
 | **Labelled controls** | Every input, button and expander has a text label; the uploader carries help text naming what it accepts. |
 | **No internal identifiers on screen** | The pipeline calls a term `non_solicit_months`; the interface says "Non-solicitation period". A screen reader would otherwise announce "non underscore solicit underscore months". |
 | **Severity chips name what they describe** | The chip renders in its own column beside the finding, so it carries an `aria-label` restating the pairing ("HIGH RISK: Confidentiality term") instead of announcing a bare "HIGH RISK" with nothing attached. |
+| **Reflow** | Suggested redlines are single unbroken paragraphs of contract wording. `st.code` does not wrap by default — it scrolls sideways, which fails 1.4.10 and is unusable on a phone — so they are rendered with `wrap_lines=True`. |
 | **Plain language** | Findings are written for a non-lawyer, and the eight unavoidable terms have a [glossary](#plain-english-glossary). |
 
 **Known gaps, stated rather than glossed:**
