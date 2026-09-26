@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import json
 import time
+from functools import lru_cache
 from typing import TypeVar
 
 from pydantic import BaseModel, ValidationError
@@ -175,15 +176,25 @@ def estimate_tokens(system: str, user: str, max_tokens: int, schema: dict | None
 # --- Groq --------------------------------------------------------------------
 
 
+@lru_cache(maxsize=1)
 def _groq_client():
+    """One client for the process, not one per request.
+
+    Each SDK client owns an httpx connection pool. Constructing one per call
+    meant a fresh TLS handshake on every request and a pool that was never
+    closed -- 21 of each on a corpus build. Cached rather than module-level so
+    that importing this module still costs nothing and needs no API key, which
+    is what lets the offline tests import the pipeline without one.
+
+    lru_cache does not cache exceptions, so a missing or malformed key still
+    raises from get_api_key() on every attempt rather than once.
+    """
     import groq
 
     return groq.Groq(api_key=config.get_api_key())
 
 
 def _groq_structured(system: str, user: str, model_cls, model: str, max_tokens: int):
-    import groq
-
     schema = strictify(model_cls.model_json_schema())
 
     # gpt-oss-120b intermittently returns a bare array where the schema's root
@@ -309,11 +320,19 @@ def _groq_text(system: str, user: str, model: str, max_tokens: int) -> str:
 # Retained so PROVIDER can be switched back without rewriting the pipeline.
 
 
+@lru_cache(maxsize=1)
+def _anthropic_client():
+    """Cached for the same reason as _groq_client()."""
+    import anthropic
+
+    return anthropic.Anthropic(api_key=config.get_api_key())
+
+
 def _anthropic_structured(system: str, user: str, model_cls, model: str, max_tokens: int):
     import anthropic
 
     try:
-        response = anthropic.Anthropic(api_key=config.get_api_key()).messages.parse(
+        response = _anthropic_client().messages.parse(
             model=model,
             max_tokens=max_tokens,
             # Cached because the system prompt is identical across every
@@ -345,7 +364,7 @@ def _anthropic_text(system: str, user: str, model: str, max_tokens: int) -> str:
     import anthropic
 
     try:
-        response = anthropic.Anthropic(api_key=config.get_api_key()).messages.create(
+        response = _anthropic_client().messages.create(
             model=model,
             max_tokens=max_tokens,
             system=[{
