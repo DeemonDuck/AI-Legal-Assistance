@@ -248,7 +248,7 @@ py evaluate.py                # measure the scorer against ground truth
 py compare_runs.py --doc aggressive_nda_01
 
 # Offline tests — no API key, no network, no cost
-py tests/run_all.py                   # all six suites
+py tests/run_all.py                   # all seven suites
 py tests/run_all.py --verbose         # with each suite's full output
 py tests/test_scoring.py              # or one at a time, which is how you debug
 
@@ -486,10 +486,10 @@ Read that number with the caveat the tool prints for itself: it measures the
 scorer against **eight reference NDAs**, which is not the same as measuring it
 against the market. Run `py evaluate.py` to reproduce it.
 
-### Underneath that, six offline suites
+### Underneath that, seven offline suites
 
 `py evaluate.py` answers *"are the answers right?"*. It needs a corpus baseline
-and costs API calls. Beneath it sit six suites that answer *"is the machinery
+and costs API calls. Beneath it sit seven suites that answer *"is the machinery
 correct?"* on fabricated data, with no key, no network and no cost:
 
 | Suite | What it pins down |
@@ -500,8 +500,9 @@ correct?"* on fabricated data, with no key, no network and no cost:
 | `test_evaluation.py` | **The eval harness itself** — fed deliberately broken scorer output and required to report failure. |
 | `test_negotiate.py` | Cache keys, prompt grounding, and the no-risk short circuit that avoids spending a request. |
 | `test_accessibility.py` | WCAG contrast ratios recomputed from the shipped palette and theme. |
+| `test_session_state.py` | That one document's generated positions and draft email cannot survive into the next upload. |
 
-[CI](.github/workflows/tests.yml) runs all six on Python 3.11 and 3.13, lints
+[CI](.github/workflows/tests.yml) runs all seven on Python 3.11 and 3.13, lints
 with ruff, and separately checks the two things that fail *silently* in
 production: that the committed corpus baseline still matches the extraction
 schema, and that the three demo documents still hit their cached extractions —
@@ -649,7 +650,7 @@ Roughly ordered by improvement per unit of work:
 | `data/golden/` | Eval documents plus `expected.json` ground truth. |
 | `tests/run_all.py` | Runs every offline suite; non-zero exit on any failure. |
 | `pyproject.toml` | Ruff configuration. No `[project]` table on purpose — see the comment at the top of the file. |
-| `.github/workflows/` | CI: lint, the six suites on two Python versions, and the two production checks that fail silently otherwise. |
+| `.github/workflows/` | CI: lint, the seven suites on two Python versions, and the two production checks that fail silently otherwise. |
 
 **Nothing in `src/` imports Streamlit.** The pipeline is testable without a
 browser, and adding an API layer or a different front end means calling the same
