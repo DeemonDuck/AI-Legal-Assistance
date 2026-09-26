@@ -177,6 +177,55 @@ def _is_heading(line: str) -> bool:
     return False
 
 
+# Words a heading title may leave lowercase. Everything else has to be
+# capitalised, and that is what separates a title from a short sentence.
+_TITLE_STOPWORDS = frozenset("a an and as at by for in of on or the to with".split())
+
+_TITLE_MAX_CHARS = 60
+
+
+def _looks_like_title(remainder: str) -> bool:
+    """Whether a heading's remainder is a section title rather than prose.
+
+    Real filings write `1. Definitions.` and `8. No Warranty; No Licence` --
+    a title that ends the line, sometimes closed with a full stop, sometimes
+    carrying an internal semicolon. Both fell through every rule above and
+    left the heading as a bare `1.`, stranding the title in the body. Nothing
+    was lost for extraction, which reads the body anyway, but every citation
+    pointing at that clause lost the one word telling a reader where to look
+    -- and showing someone where a finding came from is most of what makes it
+    checkable. Six of the fourteen clauses in a real SEC-filed NDA hit this.
+
+    The discriminator is CAPITALISATION, not length. A title capitalises every
+    word except short connectives; a sentence does not. That is what keeps
+    "Return or Destruction of Materials" apart from "This Agreement is
+    governed by Delaware law", which is just as short. Accepting the latter
+    would hand back a clause with an empty body, and _merge_stubs would then
+    fold it into its neighbour -- silently gluing two real clauses together,
+    which is a worse failure than the one being fixed.
+    """
+    text = remainder.strip()
+    stripped = text.rstrip(".").strip()
+
+    if not stripped or len(stripped) > _TITLE_MAX_CHARS:
+        return False
+
+    # A trailing colon introduces a list. The words before it are a lead-in
+    # ("the Parties agree as follows:"), not the name of a section.
+    if text.endswith(":"):
+        return False
+
+    # More than one sentence is prose, however it is capitalised.
+    if re.search(r"\.\s+\S", text):
+        return False
+
+    words = [w for w in re.split(r"[\s;,/&-]+", stripped) if w]
+    return bool(words) and all(
+        word.lower() in _TITLE_STOPWORDS or word[0].isupper() or word[0].isdigit()
+        for word in words
+    )
+
+
 def _split_heading_from_body(heading_line: str) -> tuple[str, str]:
     """A heading line often carries the clause's first sentence, e.g.
     '5. Term. This Agreement shall remain in effect for two years.'
@@ -194,8 +243,21 @@ def _split_heading_from_body(heading_line: str) -> tuple[str, str]:
         return label, ""
 
     # "5. Term. This Agreement shall..." -> heading "5. Term", body the rest.
-    title_match = re.match(r"^([A-Z][A-Za-z\s\-']{0,40})\.\s+(.*)$", remainder)
-    if title_match:
+    #
+    # The character class is deliberately broad -- anything up to the first
+    # full stop or colon. Real filings title sections "Termination; Duration
+    # of Obligations." and "Waivers; Amendments; Assignment; Counterparts.",
+    # and close some with a colon rather than a stop ("Non-Publicity: All
+    # media releases..."). The previous pattern allowed only letters, spaces,
+    # hyphens and apostrophes across at most 41 characters, so every one of
+    # those fell through to a bare label.
+    #
+    # Breadth is safe because _looks_like_title then has to agree it is a
+    # title and not the opening sentence of the clause. Matching widely and
+    # validating is more honest than encoding the judgement into the regex,
+    # where it cannot be read.
+    title_match = re.match(r"^([A-Z][^.:]{0,70}?)[.:]\s+(\S.*)$", remainder)
+    if title_match and _looks_like_title(title_match.group(1)):
         return f"{label} {title_match.group(1).strip()}", title_match.group(2).strip()
 
     # "5. Term" alone on its line -> the whole remainder is the title.
@@ -204,6 +266,13 @@ def _split_heading_from_body(heading_line: str) -> tuple[str, str]:
     # -- the single strongest signal of clause type -- gets buried in the body.
     if len(remainder) <= 60 and not re.search(r"[.;:]", remainder):
         return f"{label} {remainder}", ""
+
+    # "1. Definitions." / "8. No Warranty; No Licence" -- a title that closes
+    # the line. Checked last so it only sees lines every rule above rejected,
+    # which until now returned a bare label. The trailing full stop is dropped
+    # because it belongs to the line, not to the title.
+    if _looks_like_title(remainder):
+        return f"{label} {remainder.rstrip('.').strip()}", ""
 
     return label, remainder
 

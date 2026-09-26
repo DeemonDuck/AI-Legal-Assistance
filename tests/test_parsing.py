@@ -76,6 +76,69 @@ check("bare title stays whole",
 check("label alone survives", _split_heading_from_body("5."), ("5.", ""))
 
 
+print("\n--- Heading styles real filings actually use ---")
+
+# Everything below was taken from a Confidentiality and Non-Disclosure
+# Agreement filed with the SEC. Six of its fourteen clauses used to come back
+# with a bare label like "6.", stranding the title in the body -- extraction
+# still read it, but every citation lost the word telling a reader where to
+# look, and pointing at the source is most of what makes a finding checkable.
+
+# A title that closes the line with a full stop.
+check("title ending in a full stop",
+      _split_heading_from_body("1. Definitions."), ("1. Definitions", ""))
+
+# Semicolons are ordinary inside contract section titles. The old pattern
+# allowed only letters, spaces, hyphens and apostrophes.
+check("semicolons inside a title",
+      _split_heading_from_body(
+          "6. Termination; Duration of Obligations. Unless sooner terminated, "
+          "this Agreement continues."),
+      ("6. Termination; Duration of Obligations",
+       "Unless sooner terminated, this Agreement continues."))
+check("several semicolons",
+      _split_heading_from_body(
+          "8. Waivers; Amendments; Assignment; Counterparts. This Agreement "
+          "may not be modified except in writing.")[0],
+      "8. Waivers; Amendments; Assignment; Counterparts")
+
+# Some sections close the title with a colon instead of a stop.
+check("title closed by a colon",
+      _split_heading_from_body("11. Non-Publicity: All media releases shall be "
+                               "approved in advance."),
+      ("11. Non-Publicity", "All media releases shall be approved in advance."))
+
+# The old cap was 41 characters, which real titles exceed routinely.
+check("title longer than the old 41-character cap",
+      _split_heading_from_body(
+          "3. Exceptions to the Confidentiality and Non-Use Obligations. The "
+          "obligations imposed by Section 2 shall not apply.")[0],
+      "3. Exceptions to the Confidentiality and Non-Use Obligations")
+
+# --- and the things that must NOT be mistaken for titles -------------------
+
+# Prose that happens to be short. Accepting this would return an empty body,
+# and _merge_stubs would then fold the clause into its neighbour -- gluing two
+# real clauses together, which is worse than the bug being fixed.
+check("a short sentence is not a title",
+      _split_heading_from_body("12. This Agreement is governed by Delaware law."),
+      ("12.", "This Agreement is governed by Delaware law."))
+check("the sentence stays in the body where the scorer can read it",
+      "Delaware" in _split_heading_from_body(
+          "12. This Agreement is governed by Delaware law.")[1], True)
+
+# A trailing colon introduces a list; the words before it are a lead-in.
+check("a lead-in ending in a colon is not a title",
+      _split_heading_from_body(
+          "2. In consideration of the foregoing, the Parties agree as follows:"),
+      ("2.", "In consideration of the foregoing, the Parties agree as follows:"))
+
+# The behaviour that already worked must be unchanged.
+check("title plus first sentence still splits",
+      _split_heading_from_body("5. Term. This Agreement shall remain in effect."),
+      ("5. Term", "This Agreement shall remain in effect."))
+
+
 print("\n--- Cleaning ---")
 
 check("bare page numbers dropped", "7" in _clean_text("Clause text\n7\nMore text"), False)
