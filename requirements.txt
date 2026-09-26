@@ -11,5 +11,7 @@ python-docx>=1.1.2
 # UI
 streamlit>=1.40.0
 
-# Numerics (stats over corpus attribute distributions)
-numpy>=2.1.0
+# No numpy. The corpus percentiles are hand-rolled in legal_ai/corpus.py so the
+# arithmetic is visible in review, and at n<100 there is nothing to gain from a
+# vectorised implementation. numpy was listed here for a while after the code
+# stopped importing it, which cost every cold deploy the download for nothing.
