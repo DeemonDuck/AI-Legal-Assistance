@@ -14,6 +14,7 @@ who lands mid-report should not have to scroll to learn the tool is not a lawyer
 
 from __future__ import annotations
 
+import hashlib
 import os
 import sys
 import tempfile
@@ -102,6 +103,44 @@ def _saved_upload(uploaded):
         Path(handle.name).unlink(missing_ok=True)
 
 
+# Session keys that belong to one specific document and must not outlive it.
+# Both are generated on demand by a button, so they persist across reruns by
+# design -- that is what stops a click being lost on the next interaction. The
+# bug is that a NEW upload is also just a rerun.
+_PER_DOCUMENT_STATE = ("negotiations", "email")
+
+
+def _forget_previous_document(state, uploaded=None) -> None:
+    """Drop per-document session state when the document changes.
+
+    Streamlit keeps session_state for the whole browser session, and uploading
+    a different file is just another rerun -- so without this, the negotiating
+    positions and draft email generated for the LAST document survive into the
+    next one and render underneath the new document's findings, with no button
+    pressed. In a tool about contracts that is worse than a stale widget: the
+    user is shown redlines and a ready-to-send email arguing terms that belong
+    to a different agreement, beside a report that says something else.
+
+    Identity is the file's CONTENT, not its name. Two different NDAs are
+    routinely both called `nda.pdf`, and an edited document keeps its name
+    while meaning something new -- on either, a name-based check would miss the
+    change. Same bytes means genuinely the same analysis, so re-uploading an
+    identical file keeps work that has already been paid for.
+
+    `state` is passed in rather than read from the global st.session_state so
+    the rule can be tested with a plain dict. Streamlit's session_state is a
+    mutable mapping, so the two behave identically here.
+    """
+    key = hashlib.sha256(uploaded.getvalue()).hexdigest() if uploaded else None
+
+    if state.get("document_key") == key:
+        return
+
+    state["document_key"] = key
+    for name in _PER_DOCUMENT_STATE:
+        state.pop(name, None)
+
+
 def _severity_badge(severity: Severity) -> str:
     colour, label = SEVERITY_STYLE[severity]
     return (
@@ -155,7 +194,14 @@ if uploaded is None:
         "No document yet. You can try one of the sample NDAs in `data/golden/` "
         "— `aggressive_nda_01.txt` has eight deliberately unusual terms."
     )
+    # Uploading and then removing a file must not leave the previous document's
+    # work on screen either, so the reset runs on this path too.
+    _forget_previous_document(st.session_state)
     st.stop()
+
+# Everything below is derived from THIS document. Anything held in session_state
+# for a previous one has to go before it can be rendered beside these findings.
+_forget_previous_document(st.session_state, uploaded)
 
 try:
     with _saved_upload(uploaded) as path, st.spinner(
@@ -237,6 +283,9 @@ if st.button("Generate negotiating positions", type="primary"):
     try:
         with st.spinner("Arguing both sides of each flagged term..."):
             st.session_state.negotiations = negotiate(report, extraction.raw_clauses)
+        # The email is written FROM the negotiations, so replacing them leaves
+        # any existing draft describing asks that are no longer on screen.
+        st.session_state.pop("email", None)
     except RuntimeError as exc:
         st.error(str(exc))
 
