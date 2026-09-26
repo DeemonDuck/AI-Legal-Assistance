@@ -1,5 +1,11 @@
 # NDA Reviewer
 
+### ▶ **[Live demo — ai-legal-assist.streamlit.app](https://ai-legal-assist.streamlit.app/)**
+
+[![tests](https://github.com/DeemonDuck/AI-Legal-Assistance/actions/workflows/tests.yml/badge.svg)](https://github.com/DeemonDuck/AI-Legal-Assistance/actions/workflows/tests.yml)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
+[![Streamlit](https://img.shields.io/badge/streamlit-live-FF4B4B)](https://ai-legal-assist.streamlit.app/)
+
 **Someone sent you an NDA to sign. Is it normal, or is it trying to take
 advantage of you?**
 
@@ -10,16 +16,49 @@ plain English which parts are unusual — and what to ask for instead.
 > It can tell you how your document compares to others. It cannot tell you
 > whether to sign.
 
+**Nothing to install to try it.** Open the demo above and upload
+`data/golden/aggressive_nda_01.txt` from this repository — a document with eight
+deliberately unusual terms. It returns seven high-risk findings instantly and
+without a single API call, because the analysis for the three sample documents
+ships with the repo.
+
 ---
 
 ### Where to start
 
 | You are… | Read |
 |---|---|
+| Just want to see it work | **[The live demo](https://ai-legal-assist.streamlit.app/)** — no install, no key |
+| Judging this against the brief | [What the brief asked for](#what-the-brief-asked-for) |
 | Just want to know what this does | Keep reading — the next two sections |
-| Want to run it | [Try it](#try-it) |
+| Want to run it yourself | [Try it](#try-it) |
 | A developer evaluating the build | [How it works](#how-it-works) and the ▸ expandable sections |
 | Wondering what it *can't* do | [What it can't do](#what-it-cant-do) — please read this one |
+
+---
+
+## What the brief asked for
+
+> *Legal documents are hard to understand without professional help. Build a
+> GenAI-powered solution that helps users understand, compare, and navigate
+> legal documents — providing information and assistance, not replacing a
+> lawyer. GenAI integration is a mandatory requirement.*
+
+Every clause of that brief maps to something you can point at in the running
+app:
+
+| The brief | Where it is in this project |
+|---|---|
+| **Understand** | Every clause gets a one-sentence plain-English summary, and every finding is written for a non-lawyer — *"your obligation never expires"*, not *"perpetual survival of confidentiality obligations"*. There is a [glossary](#plain-english-glossary) for the eight terms that cannot be avoided. |
+| **Compare** | This is the core of the tool, not a feature beside it. The document is reduced to typed facts and each one is scored against the distribution of the same fact across eight reference NDAs. Every claim is a number you can check. |
+| **Navigate** | Each finding cites the clause it came from and shows the original text on demand, so a user is never told something about their document without being shown where. |
+| **Information, not legal advice** | The disclaimer renders on every screen rather than once at the start. The tool reports how the document compares and what to ask for; it never says whether to sign. |
+| **GenAI is mandatory** | Two generative stages. The model does the *reading* (messy legal prose → typed facts) and the *writing* (arguing both sides of each flagged term, drafting replacement wording and the email). The comparison in between is deliberately arithmetic — see [why](#the-five-steps). |
+
+**Scope was narrowed on purpose: NDAs only.** One contract type carried end to
+end, with an eval proving it works, beats four types half-built. The pipeline
+itself is type-agnostic — a new contract type needs a new question set, not new
+architecture.
 
 ---
 
@@ -78,6 +117,25 @@ and say out loud in a conversation.
 
 ## Try it
 
+### The hosted app — nothing to install
+
+**<https://ai-legal-assist.streamlit.app/>**
+
+Upload any of the three sample documents from [`data/golden/`](data/golden/):
+
+| Sample | What to expect |
+|---|---|
+| `aggressive_nda_01.txt` | Eight deliberately unusual terms. Seven high-risk findings. |
+| `clean_nda_02.txt` | Deliberately ordinary. Should stay quiet — this is the one that proves it discriminates. |
+| `mixed_nda_03.txt` | Mostly normal, three planted problems. The hardest of the three. |
+
+All three are instant and cost nothing: their analysis is committed to the
+repository, so the deployed app serves them without calling a model.
+
+> Uploading **your own** document does call the API, on a free tier shared by
+> everyone who opens the link — expect roughly a minute per request, and see
+> [Privacy](#privacy-and-handling-of-uploads) for what happens to the file.
+
 ### Run the dashboard on your own machine
 
 ```bash
@@ -132,6 +190,9 @@ not a hang.
 <details>
 <summary><b>▸ Putting it online (Streamlit Community Cloud, free)</b></summary>
 
+This is how <https://ai-legal-assist.streamlit.app/> is deployed. To stand up
+your own copy:
+
 1. Push your fork to GitHub.
 2. At [share.streamlit.io](https://share.streamlit.io), sign in with GitHub and
    choose **New app**.
@@ -154,7 +215,12 @@ copy lives in the front end so that nothing under `src/` depends on Streamlit.
 **A deployed instance shares your API key with everyone who opens the URL.** The
 three sample documents cost nothing because their analysis is cached in the
 repository, but any other upload spends your allowance. Treat a public link
-accordingly.
+accordingly, and see [Privacy](#privacy-and-handling-of-uploads) for what a
+hosted instance does with the documents people give it.
+
+Streamlit Cloud also sleeps an app that has gone unvisited. The first request
+after that wakes it and takes a few seconds; nothing is lost but the cached
+extractions of anything uploaded since the last restart.
 
 </details>
 
@@ -181,11 +247,13 @@ py evaluate.py                # measure the scorer against ground truth
 # What changed between two extraction schema versions. No API calls.
 py compare_runs.py --doc aggressive_nda_01
 
-# Offline tests — no API key needed
-py tests/test_stats.py
-py tests/test_scoring.py
-py tests/test_evaluation.py
-py tests/test_negotiate.py
+# Offline tests — no API key, no network, no cost
+py tests/run_all.py                   # all six suites
+py tests/run_all.py --verbose         # with each suite's full output
+py tests/test_scoring.py              # or one at a time, which is how you debug
+
+# Lint
+ruff check .
 ```
 
 Results are cached by document content, so re-running a document is instant and
@@ -418,6 +486,28 @@ Read that number with the caveat the tool prints for itself: it measures the
 scorer against **eight reference NDAs**, which is not the same as measuring it
 against the market. Run `py evaluate.py` to reproduce it.
 
+### Underneath that, six offline suites
+
+`py evaluate.py` answers *"are the answers right?"*. It needs a corpus baseline
+and costs API calls. Beneath it sit six suites that answer *"is the machinery
+correct?"* on fabricated data, with no key, no network and no cost:
+
+| Suite | What it pins down |
+|---|---|
+| `test_parsing.py` | Clause splitting and loading. The stage every later stage trusts blindly — a badly-cut clause still extracts, still scores, and still prints a confident report. |
+| `test_stats.py` | Aggregation rules and percentile maths. A bad percentile produces a plausible number rather than an error. |
+| `test_scoring.py` | Deviation scoring against a synthetic market, including the inverted-direction rules. |
+| `test_evaluation.py` | **The eval harness itself** — fed deliberately broken scorer output and required to report failure. |
+| `test_negotiate.py` | Cache keys, prompt grounding, and the no-risk short circuit that avoids spending a request. |
+| `test_accessibility.py` | WCAG contrast ratios recomputed from the shipped palette and theme. |
+
+[CI](.github/workflows/tests.yml) runs all six on Python 3.11 and 3.13, lints
+with ruff, and separately checks the two things that fail *silently* in
+production: that the committed corpus baseline still matches the extraction
+schema, and that the three demo documents still hit their cached extractions —
+if they stop, the public demo quietly starts spending the day's token allowance
+on every visitor.
+
 <details>
 <summary><b>▸ Methodology</b></summary>
 
@@ -443,6 +533,29 @@ scorer must not pass on recall alone. **An eval that cannot fail is worse than
 no eval** — it produces a number that looks like evidence while proving nothing.
 
 </details>
+
+---
+
+## Privacy and handling of uploads
+
+An NDA is usually a draft agreement someone has not signed yet, so it is worth
+being exact about where it goes.
+
+| | |
+|---|---|
+| **The uploaded file** | Written to a temp file because the parser reads from disk, and deleted as soon as the text has been read — in a `finally`, so it goes even when extraction fails. It is never written into the repository or any persistent store. |
+| **The clause text** | Sent to the configured model provider (Groq by default, Anthropic optionally) for the extraction and negotiation calls. This is the one thing that leaves the process, and it is inherent to the tool rather than incidental. |
+| **The extraction result** | Cached on the server, keyed by a hash of the clause text. This is what makes re-running a document instant and free. On the hosted demo that cache lives on the container's own disk and disappears when it restarts — but until then, a document's *extracted facts and summaries* do persist there. |
+| **Analytics** | Off. `gatherUsageStats = false` in `.streamlit/config.toml`, because uploads here are draft legal agreements and telemetry should not be an exception to that. |
+| **Upload size** | Capped at 10 MB at the file picker rather than after the upload, since the parser would reject a large scan anyway. |
+
+**The hosted demo is a demo.** It runs on one shared free-tier API key, and the
+sensible thing to do with a genuinely confidential agreement is to run the app
+locally, where the key and the cache are yours.
+
+Secrets never reach the repository: `.env` and `.streamlit/secrets.toml` are
+both gitignored, and `config.py` checks the key's prefix so a key pasted into
+the wrong provider's variable fails with an explanation instead of a bare 401.
 
 ---
 
@@ -531,8 +644,12 @@ Roughly ordered by improvement per unit of work:
 | `build_corpus.py` | Build market statistics from `data/corpus/`. |
 | `evaluate.py` | Run the eval. |
 | `app.py` | Streamlit UI. Presentation only. |
+| `compare_runs.py` | Diff two extraction schema versions over the same document. |
 | `data/corpus/` | Reference NDAs the comparison is built from. |
 | `data/golden/` | Eval documents plus `expected.json` ground truth. |
+| `tests/run_all.py` | Runs every offline suite; non-zero exit on any failure. |
+| `pyproject.toml` | Ruff configuration. No `[project]` table on purpose — see the comment at the top of the file. |
+| `.github/workflows/` | CI: lint, the six suites on two Python versions, and the two production checks that fail silently otherwise. |
 
 **Nothing in `src/` imports Streamlit.** The pipeline is testable without a
 browser, and adding an API layer or a different front end means calling the same

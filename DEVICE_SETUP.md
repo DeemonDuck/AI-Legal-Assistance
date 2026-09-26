@@ -44,11 +44,17 @@ point of `requirements.txt` -- it is the portable form of the environment.
 ## The .env file
 
 `.env` is gitignored and will **not** travel with the repo. Recreate it on each
-device:
+device. Copy `.env.example` and fill in the key for whichever provider you are
+using — Groq is the default, and its free tier runs everything here:
 
 ```
-ANTHROPIC_API_KEY=sk-ant-...
+LLM_PROVIDER=groq
+GROQ_API_KEY=gsk_...
 ```
+
+For Anthropic instead, set `LLM_PROVIDER=anthropic` and `ANTHROPIC_API_KEY`.
+`config.py` checks the prefix, so a Groq key pasted into the Anthropic variable
+fails with an explanation rather than a bare 401 several layers down.
 
 Keep the key in a password manager, not in a chat or a screenshot. If it ever
 lands in a commit, rotate it -- git history keeps it forever otherwise.
