@@ -17,6 +17,7 @@ from __future__ import annotations
 import os
 import sys
 import tempfile
+from contextlib import contextmanager
 from pathlib import Path
 
 import streamlit as st
@@ -65,17 +66,30 @@ DISCLAIMER = (
 )
 
 
-def _save_upload(uploaded) -> Path:
-    """Persist an upload to a temp file, because the pipeline reads from disk.
+@contextmanager
+def _saved_upload(uploaded):
+    """Persist an upload to a temp file for the duration of the `with` block.
 
     Suffix is preserved: the parser dispatches on it, and a .docx written
     without its extension would be read as plain text and produce nonsense.
+
+    A context manager rather than a plain function because the file MUST be
+    removed again. An upload here is someone's draft legal agreement, and
+    NamedTemporaryFile(delete=False) leaves it on disk for the life of the
+    process. On the public deployment that means every document anyone uploads
+    accumulating in the server's temp directory, one visitor's NDA outliving
+    their session and sitting beside the next visitor's. The pipeline only needs
+    the path long enough to read the text, so the window is closed to that.
     """
     suffix = Path(uploaded.name).suffix or ".txt"
     handle = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
-    handle.write(uploaded.getbuffer())
-    handle.close()
-    return Path(handle.name)
+    try:
+        handle.write(uploaded.getbuffer())
+        handle.close()
+        yield Path(handle.name)
+    finally:
+        # missing_ok: never let cleanup failure mask the real error above it.
+        Path(handle.name).unlink(missing_ok=True)
 
 
 def _severity_badge(severity: Severity) -> str:
@@ -133,10 +147,10 @@ if uploaded is None:
     )
     st.stop()
 
-path = _save_upload(uploaded)
-
 try:
-    with st.spinner("Reading the document and extracting terms..."):
+    with _saved_upload(uploaded) as path, st.spinner(
+        "Reading the document and extracting terms..."
+    ):
         extraction = extract_document(path)
 except (RuntimeError, ValueError) as exc:
     st.error(str(exc))
